@@ -1,16 +1,17 @@
 export const metadata = {
   title: "11+ Adventure",
-  description: "Minimal sanity check",
+  description: "Minecraft-styled 11+ practice site (Kent/Bexley focus).",
 };
 
 export default function RootLayout({
   children,
-}: { children: React.ReactNode }) {
+}: {
+  children: React.ReactNode;
+}) {
   return (
     <html lang="en">
-      <body style={{ margin: 0, fontFamily: "system-ui, sans-serif" }}>
-        {children}
-      </body>
+      <head />
+      <body className="min-h-screen bg-[#c8e6c9]">{children}</body>
     </html>
   );
 }
