@@ -1,7 +1,8 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
-  /* config options here */
+  reactStrictMode: true,
+  // Do NOT set output: 'export' here for Vercel app router
 };
 
 export default nextConfig;
