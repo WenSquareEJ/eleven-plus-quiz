@@ -1,6 +1,6 @@
 export const metadata = {
   title: "11+ Adventure",
-  description: "Minecraft-styled 11+ practice (Kent/Bexley).",
+  description: "Minimal sanity check",
 };
 
 export default function RootLayout({
@@ -8,8 +8,9 @@ export default function RootLayout({
 }: { children: React.ReactNode }) {
   return (
     <html lang="en">
-      <head />
-      <body>{children}</body>
+      <body style={{ margin: 0, fontFamily: "system-ui, sans-serif" }}>
+        {children}
+      </body>
     </html>
   );
 }
