@@ -3,7 +3,7 @@
 import React, { useEffect, useState } from "react";
 
 // Types
-type Subject = "maths" | "english" | "vr" | "nvr" | "comprehension";
+type Subject = "maths" | "english" | "vr" | "nvr" | "comprehension" | "writing";
 
 type Question = {
   id: string;
@@ -16,20 +16,29 @@ type Question = {
 
 type Passage = {
   id: string;
+  title?: string;
   text: string;
   questions: Question[];
 };
 
-// Component
+// Main Page
 const Page: React.FC = () => {
-  const [mode, setMode] = useState<"menu"|"quiz"|"results">("menu");
+  const [mode, setMode] = useState<"menu"|"quiz"|"results"|"writing">("menu");
   const [subject, setSubject] = useState<Subject | null>(null);
   const [questions, setQuestions] = useState<Question[]>([]);
   const [index, setIndex] = useState(0);
   const [answers, setAnswers] = useState<number[]>([]);
   const [passage, setPassage] = useState<Passage | null>(null);
+  const [writingText, setWritingText] = useState("");
+  const [timeLeft, setTimeLeft] = useState<number>(0);
 
-  // Load comprehension JSON if needed
+  useEffect(()=>{
+    if(mode==="writing" && timeLeft>0){
+      const t=setTimeout(()=>setTimeLeft(tl=>tl-1),1000);
+      return ()=>clearTimeout(t);
+    }
+  },[mode,timeLeft]);
+
   async function startComprehension() {
     const res = await fetch("/questions/comprehension.json");
     const data: Passage[] = await res.json();
@@ -43,10 +52,16 @@ const Page: React.FC = () => {
   }
 
   function startQuiz(subj: Subject) {
-    if(subj === "comprehension") { startComprehension(); return; }
-    // simple placeholders for others
+    if(subj==="comprehension"){ startComprehension(); return; }
+    if(subj==="writing"){ 
+      setSubject("writing");
+      setWritingText("");
+      setTimeLeft(30*60); // 30 minutes
+      setMode("writing");
+      return;
+    }
     const qs: Question[] = [
-      { id: "1", subject: subj, stem: `Sample ${subj} Q`, choices:["A","B","C","D"], answerIndex:0 }
+      { id:"1", subject:subj, stem:`Sample ${subj} Q`, choices:["A","B","C","D"], answerIndex:0 }
     ];
     setQuestions(qs);
     setSubject(subj);
@@ -71,13 +86,14 @@ const Page: React.FC = () => {
             <button className="p-3 bg-green-200" onClick={()=>startQuiz("vr")}>Verbal Reasoning</button>
             <button className="p-3 bg-green-200" onClick={()=>startQuiz("nvr")}>Non Verbal Reasoning</button>
             <button className="p-3 bg-green-200" onClick={()=>startQuiz("comprehension")}>Comprehension</button>
+            <button className="p-3 bg-green-200" onClick={()=>startQuiz("writing")}>Writing (typed, 30m)</button>
           </div>
         </div>
       )}
 
       {mode==="quiz" && subject==="comprehension" && passage && (
         <div>
-          <h2 className="font-bold mb-2">Read the passage</h2>
+          <h2 className="font-bold mb-2">{passage.title||"Passage"}</h2>
           <div className="p-3 border mb-4 whitespace-pre-line">{passage.text}</div>
           <div>
             <p className="font-semibold mb-2">{questions[index].stem}</p>
@@ -88,7 +104,7 @@ const Page: React.FC = () => {
         </div>
       )}
 
-      {mode==="quiz" && subject!=="comprehension" && (
+      {mode==="quiz" && subject!=="comprehension" && subject!=="writing" && (
         <div>
           <p>{questions[index].stem}</p>
           {questions[index].choices?.map((c,i)=>(
@@ -97,10 +113,31 @@ const Page: React.FC = () => {
         </div>
       )}
 
+      {mode==="writing" && (
+        <div>
+          <h2 className="font-bold mb-2">Writing Task (30 minutes)</h2>
+          <p className="mb-2">Write your story or essay here. Autocorrect is disabled so spelling can be checked.</p>
+          <textarea 
+            className="w-full h-64 border p-2" 
+            value={writingText}
+            onChange={e=>setWritingText(e.target.value)}
+            spellCheck={false}
+          />
+          <div className="mt-2">Time left: {Math.floor(timeLeft/60)}:{String(timeLeft%60).padStart(2,"0")}</div>
+          <button className="p-2 bg-green-300 mt-3" onClick={()=>setMode("results")}>Finish</button>
+        </div>
+      )}
+
       {mode==="results" && (
         <div>
           <h2 className="text-xl font-bold mb-2">Results</h2>
-          {questions.map((q,i)=>(
+          {subject==="writing" && (
+            <div>
+              <p>Your writing (typed):</p>
+              <div className="p-3 border whitespace-pre-line">{writingText}</div>
+            </div>
+          )}
+          {subject!=="writing" && questions.map((q,i)=>(
             <div key={q.id} className="mb-2">
               <p>{q.stem}</p>
               <p>Your answer: {typeof answers[i]==="number"?q.choices?.[answers[i]]:"—"}; Correct: {q.choices?.[q.answerIndex||0]}</p>
