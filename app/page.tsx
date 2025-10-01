@@ -1,9 +1,20 @@
-// app/page.tsx — Full (Minecraft style) with Expansion Pack + generators
+// app/page.tsx — 11+ Adventure (lint-clean)
 "use client";
-import { useEffect, useMemo, useState } from "react";
 
+import { useEffect, useState } from "react";
+
+/** Types */
 type Subject = "maths" | "english" | "vr" | "nvr" | "comprehension" | "writing";
 type Mode = "menu" | "quiz" | "results" | "writing" | "writingResults";
+
+type SvgOption = {
+  kind: "shape" | "arrow" | "dots";
+  shape?: "triangle" | "square" | "circle" | "diamond";
+  fill: "black" | "white";
+  rotation?: number;
+  size?: number;
+  count?: number;
+};
 
 type Question = {
   id: string;
@@ -14,7 +25,7 @@ type Question = {
   explanation?: string;
   difficulty?: "easy" | "medium" | "hard";
   tags?: string[];
-  svgOptions?: any[]; // for NVR SVG buttons
+  svgOptions?: SvgOption[]; // for NVR SVG buttons
 };
 
 type Passage = {
@@ -29,83 +40,87 @@ type Passage = {
   }>;
 };
 
-type WritingPrompt = { id: string; text: string };
-
+/** Config */
 const QUIZ_SECONDS = 10 * 60;
 const DAILY_CAP_SECONDS = 30 * 60;
 const WRITING_SECONDS = 30 * 60;
 const COMP_QUESTION_COUNT = 5;
 
+/** Time helpers */
 function todayKey(){ const d=new Date(); return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`; }
 function getUsedSecondsToday(){ if(typeof window==="undefined") return 0; return parseInt(localStorage.getItem(`quizTime_${todayKey()}`)||"0")||0; }
 function addUsedSecondsToday(n:number){ const k=`quizTime_${todayKey()}`; const cur=getUsedSecondsToday(); localStorage.setItem(k,String(cur+n)); }
 
-function shuffle<T>(arr: T[]) { const a=[...arr]; for(let i=a.length-1;i>0;i--){ const j=Math.floor(Math.random()*(i+1)); [a[i],a[j]]=[a[j],a[i]];} return a;}
-function uniqueBy<T>(arr:T[], key:(t:T)=>string){ const s=new Set<string>(); const out:T[]=[]; for(const it of arr){ const k=key(it).toLowerCase().trim(); if(!s.has(k)){ s.add(k); out.push(it);} } return out;}
+/** Utils */
+function shuffle<T>(arr: readonly T[]) { const a=[...arr]; for(let i=a.length-1;i>0;i--){ const j=Math.floor(Math.random()*(i+1)); [a[i],a[j]]=[a[j],a[i]];} return a;}
+function uniqueBy<T>(arr: readonly T[], key:(t:T)=>string){ const s=new Set<string>(); const out:T[]=[]; for(const it of arr){ const k=key(it).toLowerCase().trim(); if(!s.has(k)){ s.add(k); out.push(it);} } return out;}
 function randInt(min:number,max:number){ return Math.floor(Math.random()*(max-min+1))+min; }
-function pick<T>(a: T[]){ return a[Math.floor(Math.random()*a.length)]; }
+function pick<T>(a: readonly T[]){ return a[Math.floor(Math.random()*a.length)]; }
 
-// --- Basic Minecraft UI helpers ---
-const Card: React.FC<{children:any, className?:string}> = ({children}) => (
+/** UI */
+const Card: React.FC<{children: React.ReactNode}> = ({children}) => (
   <div style={{borderRadius:16,border:"4px solid #3b3b3b",boxShadow:"0 8px 24px rgba(0,0,0,0.1)",padding:16,background:"linear-gradient(135deg,#e8f7e8,#d4eed4)"}}>{children}</div>
 );
 const BlockButton: React.FC<React.ButtonHTMLAttributes<HTMLButtonElement>> = ({children,...props}) => (
   <button {...props} style={{padding:"12px 16px",borderRadius:12,border:"4px solid #2f4f2f",boxShadow:"0 2px 0 rgba(0,0,0,0.15)",background:"#7cc76b",fontWeight:700,letterSpacing:0.2,cursor:"pointer"}}>{children}</button>
 );
-const Pill: React.FC<{children:any}> = ({children}) => (
+const Pill: React.FC<{children: React.ReactNode}> = ({children}) => (
   <span style={{display:"inline-block",padding:"6px 12px",borderRadius:999,background:"#cfe9c9",border:"1px solid #5a8151",fontSize:12}}>{children}</span>
 );
 
-// --- English generators (extra variety) ---
+/** Generators — English */
 function genEnglishAntonyms(n=3): Question[]{
-  const items=[["scarce","plentiful"],["visible","hidden"],["brave","cowardly"],["polite","rude"]];
+  const items = [
+    ["scarce","plentiful"],
+    ["visible","hidden"],
+    ["brave","cowardly"],
+    ["polite","rude"],
+  ] as const;
+  const wrongPool = ["rare","tiny","quiet","careful","empty","gentle","many","loud","bold"];
   const qs:Question[]=[];
   for(let i=0;i<n;i++){
-    const [w,ant]=pick(items as any);
-    const wrongs=["rare","tiny","quiet","careful","empty","gentle"];
-    const choices = shuffle([ant,...shuffle(wrongs).slice(0,3)]);
+    const [w,ant] = pick(items);
+    const choices = shuffle([ant, ...shuffle(wrongPool).slice(0,3)]);
     qs.push({id:`eng-ant-${i}-${w}`,subject:"english",stem:`Select the best antonym for ${w}:`,choices,answerIndex:choices.indexOf(ant),difficulty:"medium"});
   }
   return qs;
 }
 function genEnglishVocabCtx(n=3): Question[]{
-  const items=[
+  const items = [
     {sent:"The room was in a *chaotic* state after the party.", correct:"disordered", wrongs:["silent","gleaming","fragile"]},
     {sent:"She gave a *reluctant* smile.", correct:"unwilling", wrongs:["excited","careless","angry"]},
     {sent:"The old map was *illegible*.", correct:"hard to read", wrongs:["easy to fold","ancient","fake"]},
-  ];
+  ] as const;
   const out:Question[]=[];
-  for(let i=0;i<n;i++){ const it=pick(items as any); const choices=shuffle([it.correct,...it.wrongs]); out.push({id:`eng-vctx-${i}`,subject:"english",stem:it.sent+" — The underlined word most nearly means:",choices,answerIndex:choices.indexOf(it.correct),difficulty:"medium"}); }
+  for(let i=0;i<n;i++){ const it=pick(items); const choices=shuffle([it.correct,...it.wrongs]); out.push({id:`eng-vctx-${i}`,subject:"english",stem:it.sent+" — The underlined word most nearly means:",choices,answerIndex:choices.indexOf(it.correct),difficulty:"medium"}); }
   return out;
 }
 function genEnglishPunct(n=2): Question[]{
-  const items=[
+  const items = [
     {q:"Choose the correctly punctuated sentence:", correct:"The fox, swift and silent, darted away.", wrongs:["The fox swift and silent darted away.","The fox, swift and silent darted away.","The fox swift, and silent, darted away."]},
     {q:"Which sentence uses an apostrophe correctly?", correct:"It’s nearly time for lunch.", wrongs:["Its nearly time for lunch.","Its’ nearly time for lunch.","It nearly’s time for lunch."]},
-  ];
+  ] as const;
   const out:Question[]=[];
-  for(let i=0;i<n;i++){ const it=pick(items as any); const choices=shuffle([it.correct,...it.wrongs]); out.push({id:`eng-punct-${i}`,subject:"english",stem:it.q,choices,answerIndex:choices.indexOf(it.correct),difficulty:"hard"}); }
+  for(let i=0;i<n;i++){ const it=pick(items); const choices=shuffle([it.correct,...it.wrongs]); out.push({id:`eng-punct-${i}`,subject:"english",stem:it.q,choices,answerIndex:choices.indexOf(it.correct),difficulty:"hard"}); }
   return out;
 }
 function genEnglishCloze(n=2): Question[]{
-  const items=[
+  const items = [
     {stem:"They decided to ____ the hill before dusk.", correct:"climb", wrongs:["climbs","climbed","climbing"]},
     {stem:"I ____ my packed lunch today.", correct:"forgot", wrongs:["forget","forgets","forgetting"]},
-  ];
+  ] as const;
   const out:Question[]=[];
-  for(let i=0;i<n;i++){ const it=pick(items as any); const choices=shuffle([it.correct,...it.wrongs]); out.push({id:`eng-clz-${i}`,subject:"english",stem:it.stem,choices,answerIndex:choices.indexOf(it.correct),difficulty:"easy"}); }
+  for(let i=0;i<n;i++){ const it=pick(items); const choices=shuffle([it.correct,...it.wrongs]); out.push({id:`eng-clz-${i}`,subject:"english",stem:it.stem,choices,answerIndex:choices.indexOf(it.correct),difficulty:"easy"}); }
   return out;
 }
-function buildEnglishBank(): Question[]{
-  return [...genEnglishAntonyms(3), ...genEnglishVocabCtx(3), ...genEnglishPunct(2), ...genEnglishCloze(2)];
-}
+function buildEnglishBank(): Question[]{ return [...genEnglishAntonyms(3), ...genEnglishVocabCtx(3), ...genEnglishPunct(2), ...genEnglishCloze(2)]; }
 
-// --- Maths generators (extra) ---
+/** Generators — Maths */
 function genMathFractions(n=4): Question[]{
   const out:Question[]=[];
   for(let i=0;i<n;i++){
-    const d = pick([4,5,8,10]);
-    const num = pick([1,2,3]);
+    const d = pick([4,5,8,10] as const);
+    const num = pick([1,2,3] as const);
     const whole = randInt(12,60);
     const ans = (num/d)*whole;
     const correct = Math.round(ans*100)/100;
@@ -118,7 +133,7 @@ function genMathPercent(n=3): Question[]{
   const out:Question[]=[];
   for(let i=0;i<n;i++){
     const base = randInt(40,200);
-    const pct = pick([10,12,20,25]);
+    const pct = pick([10,12,20,25] as const);
     const inc = Math.random()<0.5;
     const ans = Math.round((inc? base*(1+pct/100) : base*(1-pct/100))*100)/100;
     const choices = shuffle([ans, ans+randInt(1,5), Math.max(1,ans-randInt(1,5)), ans+randInt(6,10)]).map(String);
@@ -139,12 +154,12 @@ function genMathWord(n=3): Question[]{
 }
 function buildMathBank(): Question[]{ return [...genMathFractions(4), ...genMathPercent(3), ...genMathWord(3)]; }
 
-// --- VR simple generators ---
+/** Generators — VR */
 function genVRSeries(n=3): Question[]{
   const out:Question[]=[];
   for(let i=0;i<n;i++){
     const start = 65 + randInt(0,18);
-    const step = pick([1,2,3]);
+    const step = pick([1,2,3] as const);
     const a = String.fromCharCode(start);
     const b = String.fromCharCode(start+step);
     const c = String.fromCharCode(start+step*2);
@@ -156,18 +171,38 @@ function genVRSeries(n=3): Question[]{
   return out;
 }
 function genVRAnalogies(n=2): Question[]{ 
-  const items=[
+  const items = [
     {stem:"PUPIL is to SCHOOL as PATIENT is to ____", correct:"HOSPITAL", wrongs:["BED","WARD","NURSE"]},
     {stem:"BEE is to HIVE as BIRD is to ____", correct:"NEST", wrongs:["BARK","FLOCK","EGG"]},
-  ];
+  ] as const;
   const out:Question[]=[]; 
-  for(let i=0;i<n;i++){ const it=pick(items as any); const choices=shuffle([it.correct,...it.wrongs]); out.push({id:`vr-ana-${i}`,subject:"vr",stem:it.stem,choices,answerIndex:choices.indexOf(it.correct),difficulty:"easy"}); }
+  for(let i=0;i<n;i++){ const it=pick(items); const choices=shuffle([it.correct,...it.wrongs]); out.push({id:`vr-ana-${i}`,subject:"vr",stem:it.stem,choices,answerIndex:choices.indexOf(it.correct),difficulty:"easy"}); }
   return out;
 }
 function buildVRBank(): Question[]{ return [...genVRSeries(3), ...genVRAnalogies(2)]; }
 
-// --- NVR placeholder (SVG handled elsewhere in your previous version). Keep curated JSON preferred. ---
+/** Data loading */
+async function loadCurated(subj: Exclude<Subject,"comprehension"|"writing">): Promise<Question[]>{
+  const map: Record<string,string> = { maths:"math", english:"english", vr:"vr", nvr:"nvr" };
+  try{
+    const res = await fetch(`/questions/${map[subj]}.json`);
+    const arr = await res.json();
+    if(Array.isArray(arr)) {
+      // Ensure type shape
+      return arr.map((q:any)=>({id:String(q.id),subject:subj as Question["subject"],stem:String(q.stem),choices:q.choices as string[],answerIndex:Number(q.answerIndex),explanation:q.explanation}));
+    }
+    return [];
+  }catch{ return []; }
+}
+async function loadComprehension(): Promise<Passage[]>{ 
+  try{ 
+    const res = await fetch("/questions/comprehension.json"); 
+    const arr = await res.json(); 
+    return Array.isArray(arr)? arr as Passage[] : []; 
+  }catch{ return []; } 
+}
 
+/** Page */
 export default function Page(){
   const [mode,setMode]=useState<Mode>("menu");
   const [subject,setSubject]=useState<Subject|null>(null);
@@ -199,28 +234,24 @@ export default function Page(){
 
   async function startComprehension(){
     if(!canStart) return;
-    try{
-      const res = await fetch("/questions/comprehension.json");
-      const bank: Passage[] = await res.json();
-      if(!Array.isArray(bank) || bank.length===0) return;
-      const chosen = bank[Math.floor(Math.random()*bank.length)];
-      setPassage(chosen);
-      const qs = chosen.questions.slice(0,COMP_QUESTION_COUNT).map((q,i)=>({ id:`${chosen.id}-${i}`, subject:"comprehension", stem:q.stem, choices:q.choices, answerIndex:q.answerIndex, explanation:q.explanation }));
-      setSubject("comprehension");
-      setQuestions(qs);
-      setIndex(0);
-      setAnswers([]);
-      setSecondsLeft(Math.min(QUIZ_SECONDS, remainingToday));
-      setMode("quiz");
-    }catch(e){ console.error(e); }
-  }
-
-  async function loadCurated(subj: Exclude<Subject,"comprehension"|"writing">): Promise<Question[]>{
-    try{
-      const res = await fetch(`/questions/${subj==="maths"?"math":"english"===subj?"english":subj}.json`);
-      const arr: Question[] = await res.json();
-      return Array.isArray(arr)?arr:[];
-    }catch{ return []; }
+    const comp = await loadComprehension();
+    if(!comp.length) return;
+    const chosen = comp[Math.floor(Math.random()*comp.length)];
+    setPassage(chosen);
+    const qs: Question[] = chosen.questions.slice(0,COMP_QUESTION_COUNT).map((q,i)=>({
+      id:`${chosen.id}-${i}`,
+      subject:"comprehension",
+      stem:q.stem,
+      choices:q.choices,
+      answerIndex:q.answerIndex,
+      explanation:q.explanation,
+    }));
+    setSubject("comprehension");
+    setQuestions(qs);
+    setIndex(0);
+    setAnswers([]);
+    setSecondsLeft(Math.min(QUIZ_SECONDS, remainingToday));
+    setMode("quiz");
   }
 
   function buildGenerated(subj: Exclude<Subject,"comprehension"|"writing">): Question[]{
@@ -232,7 +263,7 @@ export default function Page(){
 
   async function startQuiz(subj: Subject){
     if(!canStart) return;
-    if(subj==="comprehension"){ startComprehension(); return; }
+    if(subj==="comprehension"){ await startComprehension(); return; }
     if(subj==="writing"){
       setSubject("writing"); setWriting(""); setWritingTime(Math.min(WRITING_SECONDS, remainingToday)); setMode("writing"); return;
     }
@@ -254,6 +285,7 @@ export default function Page(){
     if(index+1<questions.length) setIndex(x=>x+1); else setMode("results");
   }
 
+  /** Render */
   return (
     <div style={{minHeight:"100vh",background:"linear-gradient(180deg,#c8e6c9,#a5d6a7)",color:"#20351f",padding:24}}>
       <div style={{maxWidth:980,margin:"0 auto",display:"grid",gap:16}}>
@@ -279,6 +311,9 @@ export default function Page(){
               </div>
               <div style={{fontSize:12,opacity:0.75}}>
                 Counts — Maths 12 • English 12 • VR 10 • NVR 8 • Comprehension up to 5
+              </div>
+              <div style={{display:"flex",gap:8,flexWrap:"wrap"}}>
+                <Pill>Daily: {Math.floor(getUsedSecondsToday()/60)}m / {Math.floor(DAILY_CAP_SECONDS/60)}m</Pill>
               </div>
             </div>
           </Card>
