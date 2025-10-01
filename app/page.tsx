@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, type ReactNode } from "react";
+import { useCallback, useEffect, useState, type ReactNode } from "react";
 
 /** Types **/
 type Subject = "maths" | "english" | "vr" | "nvr";
@@ -142,7 +142,13 @@ export default function Page() {
     setDailyUsed(getUsedSecondsToday());
   }, []);
 
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+  const endQuiz = useCallback(() => {
+    const elapsed = Math.max(0, QUIZ_SECONDS - secondsLeft);
+    addUsedSecondsToday(elapsed);
+    setDailyUsed(getUsedSecondsToday());
+    setMode("results");
+  }, [secondsLeft]);
+
   useEffect(() => {
     if (mode !== "quiz") return;
     if (secondsLeft <= 0) {
@@ -151,7 +157,7 @@ export default function Page() {
     }
     const t = setTimeout(() => setSecondsLeft((s) => s - 1), 1000);
     return () => clearTimeout(t);
-  }, [mode, secondsLeft]);
+  }, [mode, secondsLeft, endQuiz]);
 
   const canStart = dailyUsed < DAILY_CAP_SECONDS;
 
@@ -169,13 +175,6 @@ export default function Page() {
     setAnswers((prev) => [...prev, choiceIndex]);
     if (index + 1 < questions.length) setIndex((i) => i + 1);
     else endQuiz();
-  }
-
-  function endQuiz() {
-    const elapsed = QUIZ_SECONDS - secondsLeft;
-    addUsedSecondsToday(Math.max(0, elapsed));
-    setDailyUsed(getUsedSecondsToday());
-    setMode("results");
   }
 
   const current = questions[index] || null;
@@ -209,7 +208,7 @@ export default function Page() {
         {mode === "menu" && (
           <Card>
             <div style={{ display: "grid", gap: 12 }}>
-              {!canStart && (
+              {(!canStart) && (
                 <div
                   style={{
                     padding: 12,
@@ -219,7 +218,7 @@ export default function Page() {
                   }}
                 >
                   <div style={{ fontWeight: 700 }}>Daily time done — amazing work!</div>
-                  <div>You've reached 30 minutes today. Come back tomorrow. 💚</div>
+                  <div>You&apos;ve reached 30 minutes today. Come back tomorrow. 💚</div>
                 </div>
               )}
               <div
