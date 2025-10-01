@@ -1,3 +1,4 @@
+import type React from "react";
 // app/page.tsx — 11+ Adventure (SVG NVR + Maths Geometry restored)
 "use client";
 
@@ -73,7 +74,7 @@ const Pill: React.FC<{children: React.ReactNode}> = ({children}) => (
 );
 
 /** SVG Renderer */
-function shapePath(atom: SvgAtom): JSX.Element {
+function shapePath(atom: SvgAtom) {
   const fill = atom.fill==="black" ? "#222" : "#fff";
   const stroke = "#222";
   const cx = atom.x; const cy = atom.y; const size = atom.size;
