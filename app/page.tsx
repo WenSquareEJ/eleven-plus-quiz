@@ -1,8 +1,8 @@
 "use client";
 
-import { useCallback, useEffect, useState, type ReactNode } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 
-/** Types **/
+/** Subjects & Types **/
 type Subject = "maths" | "english" | "vr" | "nvr";
 type Mode = "menu" | "quiz" | "results";
 
@@ -15,45 +15,19 @@ type Question = {
   explanation?: string;
 };
 
-/** Minimal bank (expand later) **/
-const BASE_BANK: Question[] = [
-  {
-    id: "maths-01",
-    subject: "maths",
-    stem: "What is 3/4 of 20?",
-    choices: ["12", "13", "14", "15"],
-    answerIndex: 3,
-    explanation: "3/4 × 20 = 15.",
-  },
-  {
-    id: "english-01",
-    subject: "english",
-    stem: "Choose the best synonym for ‘eager’:",
-    choices: ["reluctant", "keen", "tired", "worried"],
-    answerIndex: 1,
-    explanation: "‘Keen’ is closest in meaning to ‘eager’.",
-  },
-  {
-    id: "vr-01",
-    subject: "vr",
-    stem: "Find the next pair: AB, BC, CD, DE, __",
-    choices: ["EF", "FG", "DD", "AE"],
-    answerIndex: 0,
-    explanation: "Letters move forward by one.",
-  },
-  {
-    id: "nvr-01",
-    subject: "nvr",
-    stem: "Which is the odd one out?",
-    choices: ["▲ black triangle", "■ black square", "● black circle", "□ white square"],
-    answerIndex: 3,
-    explanation: "All are black-filled except the white square.",
-  },
-];
+type AnswerRec = { qid: string; choice: number; correct: boolean };
+
+/** --- Configurable question counts (tweak these anytime) --- **/
+const QUESTION_COUNT: Record<Subject, number> = {
+  maths: 12,
+  english: 10,
+  vr: 10,
+  nvr: 8,
+};
 
 /** Timers **/
-const QUIZ_SECONDS = 10 * 60; // 10min per quiz
-const DAILY_CAP_SECONDS = 30 * 60; // 30min per day
+const QUIZ_SECONDS = 10 * 60; // 10 minutes per quiz
+const DAILY_CAP_SECONDS = 30 * 60; // 30 minutes/day across quizzes
 
 function todayKey() {
   const d = new Date();
@@ -72,7 +46,172 @@ function addUsedSecondsToday(delta: number) {
   localStorage.setItem(key, String(cur + delta));
 }
 
-/** Simple Minecraft-y UI (inline styles = no Tailwind needed) **/
+/** Small helpers **/
+function shuffle<T>(arr: T[]) {
+  const a = [...arr];
+  for (let i = a.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [a[i], a[j]] = [a[j], a[i]];
+  }
+  return a;
+}
+function pick<T>(arr: T[]) {
+  return arr[Math.floor(Math.random() * arr.length)];
+}
+function randInt(min: number, max: number) {
+  return Math.floor(Math.random() * (max - min + 1)) + min;
+}
+
+/** --- A tiny base bank (hand-written items) --- **/
+const BASE_BANK: Question[] = [
+  // Maths (a few handcrafted)
+  { id: "m-01", subject: "maths", stem: "What is 3/4 of 20?", choices: ["12", "13", "14", "15"], answerIndex: 3, explanation: "3/4 × 20 = 15." },
+  { id: "m-02", subject: "maths", stem: "480 ÷ 6 = ?", choices: ["60", "70", "75", "80"], answerIndex: 3, explanation: "480/6 = 80." },
+
+  // English
+  { id: "e-01", subject: "english", stem: "Choose the best synonym for ‘eager’:", choices: ["reluctant", "keen", "tired", "worried"], answerIndex: 1, explanation: "‘Keen’ ≈ ‘eager’." },
+  { id: "e-02", subject: "english", stem: "Pick the correct spelling:", choices: ["begining", "beginning", "beggining", "begininng"], answerIndex: 1, explanation: "Double ‘n’ → beginning." },
+
+  // VR
+  { id: "v-01", subject: "vr", stem: "Find the next pair: AB, BC, CD, DE, __", choices: ["EF", "FG", "AE", "DD"], answerIndex: 0, explanation: "Shift +1." },
+
+  // NVR (descriptive)
+  { id: "n-01", subject: "nvr", stem: "Which is the odd one out?", choices: ["▲ black triangle", "■ black square", "● black circle", "□ white square"], answerIndex: 3, explanation: "Only one is white." },
+];
+
+/** --- Procedural generators to ensure fresh/new sets every quiz --- **/
+function genMaths(n: number): Question[] {
+  const out: Question[] = [];
+  for (let i = 0; i < n; i++) {
+    const type = Math.random() < 0.5 ? "mult" : "frac";
+    if (type === "mult") {
+      const a = randInt(2, 12), b = randInt(2, 12), ans = a * b;
+      const choices = shuffle([ans, ans + randInt(1, 4), Math.max(1, ans - randInt(1, 4)), ans + randInt(5, 9)]).map(String);
+      out.push({
+        id: `gm-${i}-${a}x${b}`,
+        subject: "maths",
+        stem: `What is ${a} × ${b}?`,
+        choices,
+        answerIndex: choices.indexOf(String(ans)),
+        explanation: `${a} × ${b} = ${ans}.`,
+      });
+    } else {
+      const denom = pick([4, 5, 8, 10]);
+      const num = pick([1, 2, 3]);
+      const whole = randInt(10, 60);
+      const correct = (num / denom) * whole;
+      const corr = String(correct % 1 === 0 ? correct : Math.round(correct * 100) / 100);
+      const distract = [Number(corr) + randInt(1, 3), Number(corr) - randInt(1, 3), Number(corr) + randInt(4, 7)].map(String);
+      const choices = shuffle([corr, ...distract]);
+      out.push({
+        id: `gf-${i}-${num}-${denom}-${whole}`,
+        subject: "maths",
+        stem: `What is ${num}/${denom} of ${whole}?`,
+        choices,
+        answerIndex: choices.indexOf(corr),
+        explanation: `${num}/${denom} × ${whole} = ${corr}.`,
+      });
+    }
+  }
+  return out;
+}
+
+function genEnglish(n: number): Question[] {
+  const pairs = [
+    ["happy", "cheerful"], ["angry", "furious"], ["small", "tiny"], ["fast", "quick"], ["eager", "keen"], ["brave", "courageous"],
+  ];
+  const wrongs = ["tired", "worried", "reluctant", "slow", "large", "dull"];
+  const out: Question[] = [];
+  for (let i = 0; i < n; i++) {
+    const [w, syn] = pick(pairs);
+    const choices = shuffle([syn, ...shuffle(wrongs).slice(0, 3)]);
+    out.push({
+      id: `ge-${i}-${w}`,
+      subject: "english",
+      stem: `Choose the best synonym for ‘${w}’:`,
+      choices,
+      answerIndex: choices.indexOf(syn),
+      explanation: `‘${syn}’ is closest in meaning to ‘${w}’.`,
+    });
+  }
+  return out;
+}
+
+function genVR(n: number): Question[] {
+  const out: Question[] = [];
+  for (let i = 0; i < n; i++) {
+    const shift = pick([1, 2]);
+    const a = String.fromCharCode(65 + randInt(0, 20));
+    const b = String.fromCharCode(a.charCodeAt(0) + shift);
+    const c = String.fromCharCode(b.charCodeAt(0) + shift);
+    const d = String.fromCharCode(c.charCodeAt(0) + shift);
+    const next = String.fromCharCode(d.charCodeAt(0) + shift);
+    const choices = shuffle([next, String.fromCharCode(next.charCodeAt(0) + 1), String.fromCharCode(next.charCodeAt(0) - 1), a]);
+    out.push({
+      id: `gv-${i}-${a}-${shift}`,
+      subject: "vr",
+      stem: `Find the next pair: ${a}${b}, ${b}${c}, ${c}${d}, ${d}${next}, __`,
+      choices,
+      answerIndex: choices.indexOf(next),
+      explanation: `Shift by ${shift}.`,
+    });
+  }
+  return out;
+}
+
+function genNVR(n: number): Question[] {
+  const shapes = ["▲ triangle", "■ square", "● circle", "◆ diamond"];
+  const out: Question[] = [];
+  for (let i = 0; i < n; i++) {
+    const commonFill = Math.random() < 0.5 ? "black" : "white";
+    const oddFill = commonFill === "black" ? "white" : "black";
+    const options = [
+      `${shapes[0]} ${commonFill}`,
+      `${shapes[1]} ${commonFill}`,
+      `${shapes[2]} ${commonFill}`,
+      `${shapes[3]} ${oddFill}`,
+    ];
+    const choices = shuffle(options);
+    const correct = choices.findIndex((s) => s.endsWith(oddFill));
+    out.push({
+      id: `gn-${i}-${commonFill}`,
+      subject: "nvr",
+      stem: "Which is the odd one out? (descriptive)",
+      choices,
+      answerIndex: correct,
+      explanation: `Three share fill=${commonFill}; one is ${oddFill}.`,
+    });
+  }
+  return out;
+}
+
+/** Build a fresh randomized set for a subject, avoiding last quiz's questions */
+function buildQuizSet(subj: Subject, count: number, lastIds: Set<string>): Question[] {
+  const base = BASE_BANK.filter((q) => q.subject === subj);
+  const need = Math.max(0, count - base.length);
+
+  const generated =
+    subj === "maths"
+      ? genMaths(need + 6) // over-generate then trim
+      : subj === "english"
+      ? genEnglish(need + 6)
+      : subj === "vr"
+      ? genVR(need + 6)
+      : genNVR(need + 6);
+
+  const pool = shuffle([...base, ...generated]);
+
+  // Prefer questions not used in the immediately previous quiz
+  const freshFirst = pool.sort((a, b) => {
+    const A = lastIds.has(a.id) ? 1 : 0;
+    const B = lastIds.has(b.id) ? 1 : 0;
+    return A - B; // not-in-last (0) first
+  });
+
+  return freshFirst.slice(0, count);
+}
+
+/** UI helpers (inline — no Tailwind requirement) **/
 function Card({ children }: { children: ReactNode }) {
   return (
     <div
@@ -128,15 +267,19 @@ function Pill({ children }: { children: ReactNode }) {
   );
 }
 
-/** Page Component **/
+/** Page **/
 export default function Page() {
   const [mode, setMode] = useState<Mode>("menu");
   const [subject, setSubject] = useState<Subject | null>(null);
   const [questions, setQuestions] = useState<Question[]>([]);
   const [index, setIndex] = useState(0);
   const [secondsLeft, setSecondsLeft] = useState(QUIZ_SECONDS);
-  const [answers, setAnswers] = useState<number[]>([]);
+  const [answers, setAnswers] = useState<AnswerRec[]>([]);
   const [dailyUsed, setDailyUsed] = useState(0);
+  const [paused, setPaused] = useState(false);
+
+  // Track last quiz's question IDs to avoid immediate repetition
+  const lastIdsRef = useRef<Set<string>>(new Set());
 
   useEffect(() => {
     setDailyUsed(getUsedSecondsToday());
@@ -149,36 +292,50 @@ export default function Page() {
     setMode("results");
   }, [secondsLeft]);
 
+  // Timer
   useEffect(() => {
-    if (mode !== "quiz") return;
+    if (mode !== "quiz" || paused) return;
     if (secondsLeft <= 0) {
       endQuiz();
       return;
     }
     const t = setTimeout(() => setSecondsLeft((s) => s - 1), 1000);
     return () => clearTimeout(t);
-  }, [mode, secondsLeft, endQuiz]);
+  }, [mode, paused, secondsLeft, endQuiz]);
 
   const canStart = dailyUsed < DAILY_CAP_SECONDS;
+  const remainingToday = Math.max(0, DAILY_CAP_SECONDS - dailyUsed);
 
   function startQuiz(subj: Subject) {
     if (!canStart) return;
+    const count = QUESTION_COUNT[subj];
+    const set = buildQuizSet(subj, count, lastIdsRef.current);
     setSubject(subj);
-    setQuestions(BASE_BANK.filter((q) => q.subject === subj));
+    setQuestions(set);
     setIndex(0);
     setAnswers([]);
-    setSecondsLeft(Math.min(QUIZ_SECONDS, DAILY_CAP_SECONDS - dailyUsed));
+    setSecondsLeft(Math.min(QUIZ_SECONDS, remainingToday));
+    setPaused(false);
     setMode("quiz");
   }
 
   function answer(choiceIndex: number) {
-    setAnswers((prev) => [...prev, choiceIndex]);
+    const q = questions[index];
+    if (!q) return;
+    const correct = choiceIndex === q.answerIndex;
+    setAnswers((prev) => [...prev, { qid: q.id, choice: choiceIndex, correct }]);
     if (index + 1 < questions.length) setIndex((i) => i + 1);
-    else endQuiz();
+    else finishNow();
+  }
+
+  function finishNow() {
+    // Save this run's IDs to avoid reusing them immediately
+    lastIdsRef.current = new Set(questions.map((q) => q.id));
+    endQuiz();
   }
 
   const current = questions[index] || null;
-  const correctCount = answers.filter((a, i) => questions[i]?.answerIndex === a).length;
+  const correctCount = answers.filter((a) => a.correct).length;
 
   return (
     <div
@@ -190,7 +347,7 @@ export default function Page() {
         boxSizing: "border-box",
       }}
     >
-      <div style={{ maxWidth: 880, margin: "0 auto", display: "grid", gap: 16 }}>
+      <div style={{ maxWidth: 960, margin: "0 auto", display: "grid", gap: 16 }}>
         <h1
           style={{
             fontSize: 28,
@@ -208,7 +365,7 @@ export default function Page() {
         {mode === "menu" && (
           <Card>
             <div style={{ display: "grid", gap: 12 }}>
-              {(!canStart) && (
+              {!canStart && (
                 <div
                   style={{
                     padding: 12,
@@ -221,25 +378,16 @@ export default function Page() {
                   <div>You&apos;ve reached 30 minutes today. Come back tomorrow. 💚</div>
                 </div>
               )}
-              <div
-                style={{
-                  display: "grid",
-                  gridTemplateColumns: "repeat(4, minmax(0,1fr))",
-                  gap: 12,
-                }}
-              >
-                <BlockButton disabled={!canStart} onClick={() => startQuiz("maths")}>
-                  Maths
-                </BlockButton>
-                <BlockButton disabled={!canStart} onClick={() => startQuiz("english")}>
-                  English
-                </BlockButton>
-                <BlockButton disabled={!canStart} onClick={() => startQuiz("vr")}>
-                  VR
-                </BlockButton>
-                <BlockButton disabled={!canStart} onClick={() => startQuiz("nvr")}>
-                  NVR
-                </BlockButton>
+
+              <div style={{ display: "flex", flexWrap: "wrap", gap: 12 }}>
+                <BlockButton disabled={!canStart} onClick={() => startQuiz("maths")}>Maths</BlockButton>
+                <BlockButton disabled={!canStart} onClick={() => startQuiz("english")}>English</BlockButton>
+                <BlockButton disabled={!canStart} onClick={() => startQuiz("vr")}>VR</BlockButton>
+                <BlockButton disabled={!canStart} onClick={() => startQuiz("nvr")}>NVR</BlockButton>
+              </div>
+
+              <div style={{ fontSize: 12, opacity: 0.75 }}>
+                Question counts — Maths: {QUESTION_COUNT.maths} · English: {QUESTION_COUNT.english} · VR: {QUESTION_COUNT.vr} · NVR: {QUESTION_COUNT.nvr}
               </div>
             </div>
           </Card>
@@ -248,15 +396,34 @@ export default function Page() {
         {mode === "quiz" && current && (
           <Card>
             <div style={{ display: "grid", gap: 12 }}>
-              <div style={{ display: "flex", gap: 8, justifyContent: "space-between" }}>
-                <Pill>
-                  Q {index + 1}/{questions.length}
-                </Pill>
-                <Pill>
-                  Time: {Math.floor(secondsLeft / 60)}:{String(secondsLeft % 60).padStart(2, "0")}
-                </Pill>
+              <div style={{ display: "flex", gap: 8, justifyContent: "space-between", alignItems: "center" }}>
+                <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
+                  <Pill>Q {index + 1}/{questions.length}</Pill>
+                  <Pill>Subject: {subject}</Pill>
+                </div>
+                <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
+                  <Pill>
+                    Time: {Math.floor(secondsLeft / 60)}:{String(secondsLeft % 60).padStart(2, "0")}
+                  </Pill>
+                  <BlockButton
+                    onClick={() => setPaused((p) => !p)}
+                    style={{ background: paused ? "#d9c267" : "#9ad27a" }}
+                  >
+                    {paused ? "Resume" : "Pause"}
+                  </BlockButton>
+                  <BlockButton
+                    onClick={() => {
+                      if (confirm("End this quiz now and see your score?")) finishNow();
+                    }}
+                    style={{ background: "#f3a09a" }}
+                  >
+                    End quiz
+                  </BlockButton>
+                </div>
               </div>
+
               <div style={{ fontSize: 20, fontWeight: 700 }}>{current.stem}</div>
+
               <div style={{ display: "grid", gap: 10 }}>
                 {current.choices.map((c, i) => (
                   <BlockButton key={i} onClick={() => answer(i)}>
@@ -270,14 +437,56 @@ export default function Page() {
 
         {mode === "results" && (
           <Card>
-            <div style={{ display: "grid", gap: 12 }}>
-              <div style={{ fontSize: 22, fontWeight: 800 }}>Results</div>
-              <Pill>
-                Score: {correctCount}/{questions.length}
-              </Pill>
+            <div style={{ display: "grid", gap: 16 }}>
+              {/* Big score at the top */}
+              <div style={{ display: "flex", alignItems: "center", gap: 16, flexWrap: "wrap" }}>
+                <div
+                  style={{
+                    width: 80,
+                    height: 80,
+                    borderRadius: "50%",
+                    background: "#9ad27a",
+                    border: "4px solid #2f4f2f",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    fontSize: 24,
+                    fontWeight: 800,
+                  }}
+                >
+                  {correctCount}/{questions.length}
+                </div>
+                <div>
+                  <div style={{ fontSize: 22, fontWeight: 800 }}>Results</div>
+                  <div style={{ opacity: 0.8, fontSize: 13 }}>
+                    Great effort! You scored {correctCount} out of {questions.length}.
+                  </div>
+                </div>
+              </div>
+
+              {/* Optional: brief review list */}
+              <div style={{ display: "grid", gap: 8 }}>
+                {questions.map((q, i) => {
+                  const a = answers[i];
+                  const verdict = a?.correct ? "✅ Correct" : "❌ Incorrect";
+                  return (
+                    <div key={q.id} style={{ border: "2px solid #6f9e63", borderRadius: 10, padding: 12, background: "#eef7ea" }}>
+                      <div style={{ fontWeight: 700 }}>
+                        Q{i + 1}. {q.stem}
+                      </div>
+                      <div style={{ fontSize: 14 }}>
+                        Your answer: <strong>{typeof a?.choice === "number" ? q.choices[a.choice] : "—"}</strong> • Correct:{" "}
+                        <strong>{q.choices[q.answerIndex]}</strong> • {verdict}
+                      </div>
+                      {q.explanation && <div style={{ fontSize: 13, opacity: 0.9, marginTop: 4 }}>Explanation: {q.explanation}</div>}
+                    </div>
+                  );
+                })}
+              </div>
+
               <div style={{ display: "flex", gap: 12, flexWrap: "wrap" }}>
                 <BlockButton onClick={() => setMode("menu")}>Back to Menu</BlockButton>
-                <BlockButton onClick={() => subject && startQuiz(subject)}>
+                <BlockButton onClick={() => subject && startQuiz(subject!)}>
                   Try another {subject ?? ""}
                 </BlockButton>
               </div>
