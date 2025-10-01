@@ -1,7 +1,11 @@
-// app/page.tsx — 11+ Quiz + Writing (Typing & Paper) with Expanded English coverage
+// app/page.tsx — 11+ Quiz + Writing with Expanded English (clean build)
+// - Fix: typed tuple-friendly pick<T> and pairs as const
+// - Clean: removed unused imports and eslint-disable comments
+// - Includes: Maths/VR/NVR generators, Writing (Typing + Paper), Expanded English (synonyms, prefixes, suffixes, homophones, grammar, cloze)
+
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import { useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
 
 /** ------------------- Types ------------------- */
 type Subject = "maths" | "english" | "vr" | "nvr" | "reasoning" | "writing";
@@ -66,7 +70,7 @@ function addUsedSecondsToday(delta: number) {
 }
 
 /** ------------------- Utils ------------------- */
-function shuffle<T>(arr: T[]) {
+function shuffle<T>(arr: readonly T[]) {
   const a = [...arr];
   for (let i = a.length - 1; i > 0; i--) {
     const j = Math.floor(Math.random() * (i + 1));
@@ -74,7 +78,7 @@ function shuffle<T>(arr: T[]) {
   }
   return a;
 }
-function uniqueBy<T>(arr: T[], key: (x: T) => string) {
+function uniqueBy<T>(arr: readonly T[], key: (x: T) => string) {
   const seen = new Set<string>();
   const out: T[] = [];
   for (const it of arr) {
@@ -89,7 +93,7 @@ function uniqueBy<T>(arr: T[], key: (x: T) => string) {
 function randInt(min: number, max: number) {
   return Math.floor(Math.random() * (max - min + 1)) + min;
 }
-function pick<T>(arr: T[]) {
+function pick<T>(arr: readonly T[]): T {
   return arr[Math.floor(Math.random() * arr.length)];
 }
 
@@ -231,7 +235,7 @@ function genNvrSvg(count: number): Question[] {
   const shapes: Required<SvgOption>["shape"][] = ["triangle", "square", "circle", "diamond"];
   const out: Question[] = [];
   for (let i = 0; i < count; i++) {
-    const mode = pick(["fill", "rotation", "size", "count"]);
+    const mode = pick(["fill", "rotation", "size", "count"] as const);
     if (mode === "fill") {
       const common: "black" | "white" = Math.random() < 0.5 ? "black" : "white";
       const odd = common === "black" ? "white" : "black";
@@ -241,7 +245,7 @@ function genNvrSvg(count: number): Question[] {
         { kind: "shape", shape: pick(shapes), fill: common },
         { kind: "shape", shape: pick(shapes), fill: odd },
       ] as SvgOption[];
-      const order = shuffle([0, 1, 2, 3]);
+      const order = shuffle([0, 1, 2, 3] as const);
       out.push({
         id: `nvr-fill-${i}-${common}`,
         subject: "nvr",
@@ -252,7 +256,7 @@ function genNvrSvg(count: number): Question[] {
         explanation: `Three are ${common}-filled; one is ${odd}.`,
       });
     } else if (mode === "rotation") {
-      const rot = pick([0, 90, 180, 270]);
+      const rot = pick([0, 90, 180, 270] as const);
       const odd = (rot + 45) % 360;
       const options = [
         { kind: "arrow", fill: "black", rotation: rot },
@@ -260,7 +264,7 @@ function genNvrSvg(count: number): Question[] {
         { kind: "arrow", fill: "black", rotation: rot },
         { kind: "arrow", fill: "black", rotation: odd },
       ] as SvgOption[];
-      const order = shuffle([0, 1, 2, 3]);
+      const order = shuffle([0, 1, 2, 3] as const);
       out.push({
         id: `nvr-rot-${i}-${rot}`,
         subject: "nvr",
@@ -268,10 +272,10 @@ function genNvrSvg(count: number): Question[] {
         choices: ["A", "B", "C", "D"],
         answerIndex: order.indexOf(3),
         svgOptions: order.map((x) => options[x]),
-        explanation: `Three at ${rot}°, one at ${odd}°.`, // eslint-disable-line no-useless-escape
+        explanation: `Three at ${rot}°, one at ${odd}°.`, 
       });
     } else if (mode === "size") {
-      const size = pick([56, 64, 72]);
+      const size = pick([56, 64, 72] as const);
       const odd = size + 16;
       const shape = pick(shapes);
       const options = [
@@ -280,7 +284,7 @@ function genNvrSvg(count: number): Question[] {
         { kind: "shape", shape, fill: "white", size },
         { kind: "shape", shape, fill: "white", size: odd },
       ] as SvgOption[];
-      const order = shuffle([0, 1, 2, 3]);
+      const order = shuffle([0, 1, 2, 3] as const);
       out.push({
         id: `nvr-size-${i}-${shape}`,
         subject: "nvr",
@@ -291,7 +295,7 @@ function genNvrSvg(count: number): Question[] {
         explanation: "One is larger than the other three.",
       });
     } else {
-      const common = pick([3, 4, 5]);
+      const common = pick([3, 4, 5] as const);
       const odd = common + 2;
       const options = [
         { kind: "dots", fill: "black", count: common },
@@ -299,7 +303,7 @@ function genNvrSvg(count: number): Question[] {
         { kind: "dots", fill: "black", count: common },
         { kind: "dots", fill: "black", count: odd },
       ] as SvgOption[];
-      const order = shuffle([0, 1, 2, 3]);
+      const order = shuffle([0, 1, 2, 3] as const);
       out.push({
         id: `nvr-count-${i}-${common}`,
         subject: "nvr",
@@ -317,232 +321,72 @@ function genNvrSvg(count: number): Question[] {
 function genMathGeometry(count: number): Question[] {
   const out: Question[] = [];
   for (let i = 0; i < count; i++) {
-    const kind = pick(["rect-area", "tri-area", "rect-perim", "tri-perim", "angle-line", "angle-tri", "symmetry"]);
+    const kind = pick(["rect-area", "tri-area", "rect-perim", "tri-perim", "angle-line", "angle-tri", "symmetry"] as const);
     if (kind === "rect-area") {
       const w = randInt(3, 12);
       const h = randInt(3, 12);
       const ans = w * h;
       const choices = shuffle([ans, ans + randInt(1, 5), Math.max(1, ans - randInt(1, 5)), ans + randInt(6, 10)]).map(String);
-      out.push({
-        id: `math-rectA-${i}-${w}x${h}`,
-        subject: "maths",
-        stem: "A rectangle is shown. What is its area (units²)?",
-        choices,
-        answerIndex: choices.indexOf(String(ans)),
-        explanation: `Area = ${w} × ${h} = ${ans}.`,
-      });
+      out.push({ id: `math-rectA-${i}-${w}x${h}`, subject: "maths", stem: "A rectangle is shown. What is its area (units²)?", choices, answerIndex: choices.indexOf(String(ans)), explanation: `Area = ${w} × ${h} = ${ans}.` });
     } else if (kind === "tri-area") {
       const b = randInt(4, 12);
       const h = randInt(3, 10);
       const ans = 0.5 * b * h;
       const ansStr = String(Number.isInteger(ans) ? ans : Math.round(ans * 10) / 10);
-      const choices = shuffle([
-        ansStr,
-        String(Number(ansStr) + randInt(1, 4)),
-        String(Math.max(1, Number(ansStr) - randInt(1, 4))),
-        String(Number(ansStr) + randInt(5, 9)),
-      ]);
-      out.push({
-        id: `math-triA-${i}-${b}-${h}`,
-        subject: "maths",
-        stem: "A right triangle is shown. What is its area (units²)?",
-        choices,
-        answerIndex: choices.indexOf(ansStr),
-        explanation: `Area = ½ × ${b} × ${h} = ${ansStr}.`,
-      });
+      const choices = shuffle([ansStr, String(Number(ansStr) + randInt(1, 4)), String(Math.max(1, Number(ansStr) - randInt(1, 4))), String(Number(ansStr) + randInt(5, 9))]);
+      out.push({ id: `math-triA-${i}-${b}-${h}`, subject: "maths", stem: "A right triangle is shown. What is its area (units²)?", choices, answerIndex: choices.indexOf(ansStr), explanation: `Area = ½ × ${b} × ${h} = ${ansStr}.` });
     } else if (kind === "rect-perim") {
       const w = randInt(3, 12);
       const h = randInt(3, 12);
       const ans = 2 * (w + h);
       const choices = shuffle([ans, ans + 2, Math.max(1, ans - 2), ans + 4]).map(String);
-      out.push({
-        id: `math-rectP-${i}-${w}x${h}`,
-        subject: "maths",
-        stem: "A rectangle is shown. What is its perimeter (units)?",
-        choices,
-        answerIndex: choices.indexOf(String(ans)),
-        explanation: `Perimeter = 2×(w+h) = 2×(${w}+${h}) = ${ans}.`,
-      });
+      out.push({ id: `math-rectP-${i}-${w}x${h}`, subject: "maths", stem: "A rectangle is shown. What is its perimeter (units)?", choices, answerIndex: choices.indexOf(String(ans)), explanation: `Perimeter = 2×(w+h) = 2×(${w}+${h}) = ${ans}.` });
     } else if (kind === "tri-perim") {
-      const a = randInt(3, 10);
-      const b = randInt(4, 11);
-      const c = randInt(5, 12);
+      const a = randInt(3, 10), b = randInt(4, 11), c = randInt(5, 12);
       const ans = a + b + c;
       const choices = shuffle([ans, ans + 1, Math.max(1, ans - 1), ans + 3]).map(String);
-      out.push({
-        id: `math-triP-${i}-${a}-${b}-${c}`,
-        subject: "maths",
-        stem: "A triangle has side lengths shown. What is its perimeter (units)?",
-        choices,
-        answerIndex: choices.indexOf(String(ans)),
-        explanation: `Perimeter = ${a}+${b}+${c} = ${ans}.`,
-      });
+      out.push({ id: `math-triP-${i}-${a}-${b}-${c}`, subject: "maths", stem: "A triangle has side lengths shown. What is its perimeter (units)?", choices, answerIndex: choices.indexOf(String(ans)), explanation: `Perimeter = ${a}+${b}+${c} = ${ans}.` });
     } else if (kind === "angle-line") {
       const known = randInt(40, 140);
       const ans = 180 - known;
       const choices = shuffle([ans, ans + randInt(1, 5), Math.max(1, ans - randInt(1, 5)), known]).map(String);
-      out.push({
-        id: `math-angL-${i}-${known}`,
-        subject: "maths",
-        stem: "Angles on a straight line add to 180°. Find the missing angle.",
-        choices,
-        answerIndex: choices.indexOf(String(ans)),
-        explanation: `180° − ${known}° = ${ans}°.`, // eslint-disable-line no-useless-escape
-      });
+      out.push({ id: `math-angL-${i}-${known}`, subject: "maths", stem: "Angles on a straight line add to 180°. Find the missing angle.", choices, answerIndex: choices.indexOf(String(ans)), explanation: `180° − ${known}° = ${ans}°.` });
     } else if (kind === "angle-tri") {
-      const a = randInt(30, 80);
-      const b = randInt(30, 80);
+      const a = randInt(30, 80), b = randInt(30, 80);
       const ans = 180 - a - b;
       const choices = shuffle([ans, ans + randInt(1, 4), Math.max(1, ans - randInt(1, 4)), a]).map(String);
-      out.push({
-        id: `math-angT-${i}-${a}-${b}`,
-        subject: "maths",
-        stem: "Angles in a triangle add to 180°. Find the missing angle.",
-        choices,
-        answerIndex: choices.indexOf(String(ans)),
-        explanation: `180° − ${a}° − ${b}° = ${ans}°.`, // eslint-disable-line no-useless-escape
-      });
+      out.push({ id: `math-angT-${i}-${a}-${b}`, subject: "maths", stem: "Angles in a triangle add to 180°. Find the missing angle.", choices, answerIndex: choices.indexOf(String(ans)), explanation: `180° − ${a}° − ${b}° = ${ans}°.` });
     } else {
-      const shape = pick(["square", "rectangle", "isosceles triangle"]);
+      const shape = pick(["square", "rectangle", "isosceles triangle"] as const);
       const ans = shape === "square" ? 4 : shape === "rectangle" ? 2 : 1;
       const choices = shuffle([ans, ans + 1, Math.max(0, ans - 1), ans + 2]).map(String);
-      out.push({
-        id: `math-symm-${i}-${shape.replace(" ", "_")}`,
-        subject: "maths",
-        stem: `How many lines of symmetry does a ${shape} have?`,
-        choices,
-        answerIndex: choices.indexOf(String(ans)),
-        explanation: `${shape} has ${ans} line(s) of symmetry.`,
-      });
+      out.push({ id: `math-symm-${i}-${String(shape).replace(" ", "_")}`, subject: "maths", stem: `How many lines of symmetry does a ${shape} have?`, choices, answerIndex: choices.indexOf(String(ans)), explanation: `${shape} has ${ans} line(s) of symmetry.` });
     }
   }
   return out;
 }
 
-/** ------------------- Maths diagrams ------------------- */
-function MathsDiagram({ qid }: { qid: string }) {
-  if (qid.startsWith("math-rectA-") || qid.startsWith("math-rectP-")) {
-    const dims = qid.split("-")[3];
-    const [wStr, hStr] = dims.split("x");
-    const w = parseInt(wStr, 10);
-    const h = parseInt(hStr, 10);
-    return (
-      <svg width="240" height="150" viewBox="0 0 240 150">
-        <rect x="40" y="30" width="150" height="80" fill="#fff" stroke="#333" strokeWidth="4" />
-        <text x="115" y="22" textAnchor="middle" fontSize="14" fill="#333">
-          w = {w}
-        </text>
-        <text x="198" y="70" textAnchor="middle" transform="rotate(90 198 70)" fontSize="14" fill="#333">
-          h = {h}
-        </text>
-      </svg>
-    );
-  }
-  if (qid.startsWith("math-triA-")) {
-    const parts = qid.split("-");
-    const b = parseInt(parts[3], 10);
-    const h = parseInt(parts[4], 10);
-    return (
-      <svg width="240" height="170" viewBox="0 0 240 170">
-        <polygon points="40,140 200,140 40,40" fill="#fff" stroke="#333" strokeWidth="4" />
-        <line x1="40" y1="140" x2="200" y2="140" stroke="#333" strokeWidth="2" />
-        <line x1="40" y1="140" x2="40" y2="40" stroke="#333" strokeWidth="2" />
-        <rect x="40" y="130" width="10" height="10" fill="#fff" stroke="#333" strokeWidth="2" />
-        <text x="120" y="158" textAnchor="middle" fontSize="14" fill="#333">
-          base = {b}
-        </text>
-        <text x="24" y="85" textAnchor="middle" transform="rotate(-90 24 85)" fontSize="14" fill="#333">
-          height = {h}
-        </text>
-      </svg>
-    );
-  }
-  if (qid.startsWith("math-triP-")) {
-    const parts = qid.split("-");
-    const a = parseInt(parts[3], 10);
-    const b = parseInt(parts[4], 10);
-    const c = parseInt(parts[5], 10);
-    return (
-      <svg width="240" height="170" viewBox="0 0 240 170">
-        <polygon points="60,140 180,140 120,50" fill="#fff" stroke="#333" strokeWidth="4" />
-        <text x="120" y="155" textAnchor="middle" fontSize="14" fill="#333">
-          {a}+{b}+{c}
-        </text>
-      </svg>
-    );
-  }
-  if (qid.startsWith("math-angL-")) {
-    const known = parseInt(qid.split("-")[3], 10);
-    return (
-      <svg width="260" height="120" viewBox="0 0 260 120">
-        <line x1="30" y1="80" x2="230" y2="80" stroke="#333" strokeWidth="4" />
-        <line x1="130" y1="80" x2="80" y2="40" stroke="#333" strokeWidth="4" />
-        <text x="90" y="48" fontSize="14" fill="#333">
-          {known}°
-        </text>
-        <text x="180" y="70" fontSize="14" fill="#333">
-          ?
-        </text>
-      </svg>
-    );
-  }
-  if (qid.startsWith("math-angT-")) {
-    const parts = qid.split("-");
-    const a = parseInt(parts[3], 10);
-    const b = parseInt(parts[4], 10);
-    return (
-      <svg width="240" height="170" viewBox="0 0 240 170">
-        <polygon points="40,140 200,140 120,40" fill="none" stroke="#333" strokeWidth="4" />
-        <text x="55" y="130" fontSize="14" fill="#333">
-          {a}°
-        </text>
-        <text x="180" y="130" fontSize="14" fill="#333">
-          {b}°
-        </text>
-        <text x="120" y="80" fontSize="14" fill="#333">
-          ?
-        </text>
-      </svg>
-    );
-  }
-  return null;
-}
-
 /** ------------------- English Generators (Expanded) ------------------- */
 function genEnglishSynonyms(count = 4): Question[] {
-  const pairs = [
+  const pairs: readonly [string, string][] = [
     ["happy", "cheerful"],
     ["angry", "furious"],
     ["small", "tiny"],
     ["fast", "quick"],
     ["eager", "keen"],
     ["brave", "courageous"],
-  ] as const;
+  ];
   const qs: Question[] = [];
   for (let i = 0; i < count; i++) {
     const [w, syn] = pick(pairs);
-    const wrongs = ["tired", "worried", "reluctant", "slow", "large", "dull"];
+    const wrongs = ["tired", "worried", "reluctant", "slow", "large", "dull"] as const;
     const choices = shuffle([syn, ...shuffle(wrongs).slice(0, 3)]);
-    qs.push({
-      id: `eng-syn-${i}-${w}`,
-      subject: "english",
-      stem: `Choose the best synonym for '${w}':`,
-      choices,
-      answerIndex: choices.indexOf(syn),
-      explanation: `'${syn}' is closest in meaning to '${w}'.`,
-    });
+    qs.push({ id: `eng-syn-${i}-${w}`, subject: "english", stem: `Choose the best synonym for '${w}':`, choices, answerIndex: choices.indexOf(syn), explanation: `'${syn}' is closest in meaning to '${w}'.` });
   }
   return qs;
 }
-
 function genEnglishPrefixes(count = 3): Question[] {
-  const meanings = {
-    un: "not/undo",
-    re: "again",
-    dis: "not/opposite",
-    mis: "wrongly",
-    pre: "before",
-  } as const;
+  const meanings = { un: "not/undo", re: "again", dis: "not/opposite", mis: "wrongly", pre: "before" } as const;
   type Prefix = keyof typeof meanings;
   const prefixes = Object.keys(meanings) as Prefix[];
   const roots = ["do", "place", "cover", "lead", "read"] as const;
@@ -552,46 +396,23 @@ function genEnglishPrefixes(count = 3): Question[] {
     const r = pick(roots);
     const word = `${p}${r}`;
     const correct = meanings[p];
-    const others = ["together", "after", "without"];
-    const choices = shuffle([correct, ...others]);
-    qs.push({
-      id: `eng-pre-${i}-${word}`,
-      subject: "english",
-      stem: `What does the prefix in '${word}' mean?`,
-      choices,
-      answerIndex: choices.indexOf(correct),
-      explanation: `'${p}-' means ${correct}.`,
-    });
+    const choices = shuffle([correct, "together", "after", "without"]);
+    qs.push({ id: `eng-pre-${i}-${word}`, subject: "english", stem: `What does the prefix in '${word}' mean?`, choices, answerIndex: choices.indexOf(correct), explanation: `'${p}-' means ${correct}.` });
   }
   return qs;
 }
-
 function genEnglishSuffixes(count = 3): Question[] {
-  const bases = [
-    ["happy", "happiness"],
-    ["kind", "kindness"],
-    ["hope", "hopeful"],
-    ["care", "careless"],
-    ["run", "runner"],
-  ] as const;
+  const bases: readonly [string, string][] = [["happy", "happiness"], ["kind", "kindness"], ["hope", "hopeful"], ["care", "careless"], ["run", "runner"]];
   const qs: Question[] = [];
   for (let i = 0; i < count; i++) {
     const [base, derived] = pick(bases);
     const suffix = derived.substring(base.length);
     const wrongs = ["ing", "ed", "ful", "ness", "less", "er"].filter((s) => s !== suffix);
     const choices = shuffle([suffix, ...shuffle(wrongs).slice(0, 3)]);
-    qs.push({
-      id: `eng-suf-${i}-${base}`,
-      subject: "english",
-      stem: `Which suffix correctly forms a new word from '${base}'?`,
-      choices,
-      answerIndex: choices.indexOf(suffix),
-      explanation: `Adding '${suffix}' to '${base}' makes '${derived}'.`,
-    });
+    qs.push({ id: `eng-suf-${i}-${base}`, subject: "english", stem: `Which suffix correctly forms a new word from '${base}'?`, choices, answerIndex: choices.indexOf(suffix), explanation: `Adding '${suffix}' to '${base}' makes '${derived}'.` });
   }
   return qs;
 }
-
 function genEnglishHomophones(count = 3): Question[] {
   const sets = [
     { sentence: "I left my book over ____.", correct: "there", wrongs: ["their", "they're", "thare"] },
@@ -604,18 +425,10 @@ function genEnglishHomophones(count = 3): Question[] {
   for (let i = 0; i < count; i++) {
     const s = pick(sets);
     const choices = shuffle([s.correct, ...s.wrongs]);
-    qs.push({
-      id: `eng-homo-${i}`,
-      subject: "english",
-      stem: s.sentence,
-      choices,
-      answerIndex: choices.indexOf(s.correct),
-      explanation: `Correct answer is '${s.correct}'.`,
-    });
+    qs.push({ id: `eng-homo-${i}`, subject: "english", stem: s.sentence, choices, answerIndex: choices.indexOf(s.correct), explanation: `Correct answer is '${s.correct}'.` });
   }
   return qs;
 }
-
 function genEnglishGrammar(count = 3): Question[] {
   const stems = [
     { question: "Which sentence is correct?", correct: "She runs quickly.", wrongs: ["She run quickly.", "She running quickly.", "She is run quickly."] },
@@ -626,18 +439,10 @@ function genEnglishGrammar(count = 3): Question[] {
   for (let i = 0; i < count; i++) {
     const item = pick(stems);
     const choices = shuffle([item.correct, ...item.wrongs]);
-    qs.push({
-      id: `eng-gram-${i}`,
-      subject: "english",
-      stem: item.question,
-      choices,
-      answerIndex: choices.indexOf(item.correct),
-      explanation: `Correct: '${item.correct}'.`,
-    });
+    qs.push({ id: `eng-gram-${i}`, subject: "english", stem: item.question, choices, answerIndex: choices.indexOf(item.correct), explanation: `Correct: '${item.correct}'.` });
   }
   return qs;
 }
-
 function genEnglishCloze(count = 2): Question[] {
   const texts = [
     { stem: "It was a ____ day and the children were excited to play outside.", correct: "sunny", wrongs: ["sonny", "sunni", "snowy"] },
@@ -648,18 +453,10 @@ function genEnglishCloze(count = 2): Question[] {
   for (let i = 0; i < count; i++) {
     const t = pick(texts);
     const choices = shuffle([t.correct, ...t.wrongs]);
-    qs.push({
-      id: `eng-cloze-${i}`,
-      subject: "english",
-      stem: t.stem,
-      choices,
-      answerIndex: choices.indexOf(t.correct),
-      explanation: `Best fit: '${t.correct}'.`,
-    });
+    qs.push({ id: `eng-cloze-${i}`, subject: "english", stem: t.stem, choices, answerIndex: choices.indexOf(t.correct), explanation: `Best fit: '${t.correct}'.` });
   }
   return qs;
 }
-
 function buildEnglishBank(): Question[] {
   return [
     ...genEnglishSynonyms(4),
@@ -786,9 +583,8 @@ export default function Page() {
     const correct = choiceIndex === q.answerIndex;
     setAnswers((prev) => [...prev, { qid: q.id, choice: choiceIndex, correct }]);
     if (index + 1 < questions.length) setIndex((i) => i + 1);
-    else finishNow();
+    else endQuiz();
   }
-  function finishNow() { endQuiz(); }
 
   function startWritingTyping() {
     if (!canStart) return;
@@ -864,7 +660,7 @@ export default function Page() {
                 <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
                   <Pill>Time: {Math.floor(secondsLeft / 60)}:{String(secondsLeft % 60).padStart(2, "0")}</Pill>
                   <BlockButton onClick={() => setPaused((p) => !p)} style={{ background: paused ? "#d9c267" : "#9ad27a" }}>{paused ? "Resume" : "Pause"}</BlockButton>
-                  <BlockButton onClick={() => { if (confirm("End this quiz now and see your score?")) finishNow(); }} style={{ background: "#f3a09a" }}>End quiz</BlockButton>
+                  <BlockButton onClick={() => { if (confirm("End this quiz now and see your score?")) endQuiz(); }} style={{ background: "#f3a09a" }}>End quiz</BlockButton>
                 </div>
               </div>
 
