@@ -313,7 +313,7 @@ function genMaths(settings: Settings): Question[]{
 }
 
 /* VR */
-function genVR(settings: Settings): Question[]{
+function genVR(): Question[] {
   const qs: Question[] = [];
   for(let i=0;i<4;i++){
     const start = 65 + randInt(0,18);
@@ -349,7 +349,7 @@ function genVR(settings: Settings): Question[]{
 }
 
 /* NVR — SVG odd-one-out & rotation */
-function genNVR(settings: Settings): Question[]{
+function genNVR(): Question[] {
   const qs: Question[] = [];
   // Fill odd-one-out
   for(let i=0;i<5;i++){
@@ -483,8 +483,8 @@ export default function Page(){
   function generateFor(subj: Exclude<Subject,"comprehension"|"writing">): Question[]{
     if(subj==="english") return genEnglish(settings);
     if(subj==="maths") return genMaths(settings);
-    if(subj==="vr") return genVR(settings);
-    if(subj==="nvr") return genNVR(settings);
+    if(subj==="vr") return genVR();
+    if(subj==="nvr") return genNVR();
     return [];
   }
 
@@ -554,7 +554,7 @@ export default function Page(){
               {!canStart && (
                 <div style={{padding:12,borderRadius:10,background:"#ffe8d2",border:"2px solid #cc8a4a"}}>
                   <div style={{fontWeight:700}}>Daily time done — amazing work!</div>
-                  <div>You've reached 30 minutes today. Come back tomorrow for more quests. 💚</div>
+                  <div>You have reached 30 minutes today. Come back tomorrow for more quests. 💚</div>
                 </div>
               )}
               <div style={{display:"flex",flexWrap:"wrap",gap:12}}>
