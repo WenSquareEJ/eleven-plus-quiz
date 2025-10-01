@@ -364,7 +364,7 @@ function genMaths(settings: Settings){
     const rects = Array.from({length:4}).map(()=>({w:randInt(3,12), h:randInt(3,12)}));
     const areas = rects.map(r=>r.w*r.h);
     const correct = areas.indexOf(Math.max(...areas));
-    cconst options: SvgAtom[][] = rects.map(() => [
+    const options: SvgAtom[][] = rects.map(() => [
   { shape: "square" as ShapeKind, fill: "white" as FillKind, size: 56, x: 50, y: 50 }
 ]);
     const stem = `Which rectangle has the largest area? (A: ${rects[0].w}×${rects[0].h}, B: ${rects[1].w}×${rects[1].h}, C: ${rects[2].w}×${rects[2].h}, D: ${rects[3].w}×${rects[3].h})`;
