@@ -185,7 +185,7 @@ function generateMathsQuestions(year: YearGroup, difficulty: Difficulty): Questi
 // =========================
 // English Generator
 // =========================
-function generateEnglishQuestions(_year: YearGroup, _difficulty: Difficulty): Question[] {
+function generateEnglishQuestions(): Question[] {
   const total = rand(8, 12);
   const qs: Question[] = [];
   const used = new Set<string>();
@@ -269,7 +269,7 @@ function generateEnglishQuestions(_year: YearGroup, _difficulty: Difficulty): Qu
 // =========================
 // Verbal Reasoning (VR) Generator
 // =========================
-function generateVRQuestions(_year: YearGroup, _difficulty: Difficulty): Question[] {
+function generateVRQuestions(): Question[] {
   const total = rand(8, 12);
   const qs: Question[] = [];
   const used = new Set<string>();
@@ -280,7 +280,7 @@ function generateVRQuestions(_year: YearGroup, _difficulty: Difficulty): Questio
     if (kind === 1) {
       // Letter sequence
       const startIdx = rand(0, 20);
-      const step = byDifficulty(_difficulty, rand(1, 3));
+      const step = rand(1, 3);
       const seq = [0, 1, 2, 3].map((i) => alphabet[(startIdx + i * step) % 26]);
       const ans = alphabet[(startIdx + 4 * step) % 26];
       const key = `vr-seq:${seq.join("")}-${step}`;
@@ -350,7 +350,7 @@ function shapeSVG(kind: "square" | "circle" | "triangle", size: number, fill: st
   );
 }
 
-function generateNVRQuestions(_year: YearGroup, _difficulty: Difficulty): Question[] {
+function generateNVRQuestions(): Question[] {
   const total = rand(8, 12);
   const qs: Question[] = [];
   const used = new Set<string>();
@@ -392,7 +392,7 @@ const PAGE_STYLES: React.CSSProperties = {
   fontFamily: "'Press Start 2P', monospace",
 };
 
-export default function Page(): JSX.Element {
+export default function Page(): React.ReactElement {
   const [year, setYear] = useState<YearGroup>("Year 5");
   const [difficulty, setDifficulty] = useState<Difficulty>("Medium");
   const [subject, setSubject] = useState<Subject | null>(null);
@@ -445,9 +445,9 @@ export default function Page(): JSX.Element {
     setStartedAt(Date.now());
 
     if (s === "Maths") setQuestions(generateMathsQuestions(year, difficulty));
-    else if (s === "English") setQuestions(generateEnglishQuestions(year, difficulty));
-    else if (s === "VR") setQuestions(generateVRQuestions(year, difficulty));
-    else if (s === "NVR") setQuestions(generateNVRQuestions(year, difficulty));
+    else if (s === "English") setQuestions(generateEnglishQuestions());
+    else if (s === "VR") setQuestions(generateVRQuestions());
+    else if (s === "NVR") setQuestions(generateNVRQuestions());
     else if (s === "Comprehension") {
       const pool = passages.length > 0 ? passages : [];
       const pick = pool.length > 0 ? pool[rand(0, pool.length - 1)] : null;
