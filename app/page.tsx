@@ -1,35 +1,41 @@
-// app/page.tsx — Client component with SVG-based NVR + Maths geometry
+// app/page.tsx — Advanced: SVG NVR & Maths diagrams + mixed "Reasoning" quiz
 "use client";
 
 import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
 
-type Subject = "maths" | "english" | "vr" | "nvr";
+type Subject = "maths" | "english" | "vr" | "nvr" | "reasoning";
 type Mode = "menu" | "quiz" | "results";
 
 type SvgOption = {
-  kind: "shape" | "arrow";
+  kind: "shape" | "arrow" | "dots";
   shape?: "triangle" | "square" | "circle" | "diamond";
   fill: "black" | "white";
   rotation?: number; // degrees for arrows/diamonds/triangles
   size?: number; // px
+  count?: number; // for 'dots'
   label?: string; // accessible label
 };
 
 type Question = {
   id: string;
-  subject: Subject;
+  subject: Exclude<Subject, "reasoning">; // stored as core subject; reasoning mixes vr+nvr
   stem: string;
-  choices: string[];             // text labels for review; for SVG, use ["A","B","C","D"]
+  choices: string[];             // text labels; for SVG, we show ["A","B","C","D"]
   answerIndex: number;
   explanation?: string;
-  // Optional SVG-based options to render visually:
-  svgOptions?: SvgOption[];      // when present, render these in the quiz options
+  svgOptions?: SvgOption[];      // if present, render visuals for options
 };
 
 type AnswerRec = { qid: string; choice: number; correct: boolean };
 
 /** Configurable counts **/
-const QUESTION_COUNT: Record<Subject, number> = { maths: 12, english: 10, vr: 10, nvr: 8 };
+const QUESTION_COUNT: Record<Subject, number> = {
+  maths: 12,
+  english: 10,
+  vr: 10,
+  nvr: 8,
+  reasoning: 12, // mixed VR + NVR
+};
 const QUIZ_SECONDS = 10 * 60;
 const DAILY_CAP_SECONDS = 30 * 60;
 
@@ -76,7 +82,6 @@ function SvgShape({ opt }: { opt: SvgOption }) {
   const fill = opt.fill === "black" ? "#333" : "#fff";
 
   if (opt.kind === "arrow") {
-    // Simple arrow (line + marker head), rotate by 'rotation'
     return (
       <svg width={size} height={size} viewBox="0 0 100 100" style={{ transform: `rotate(${opt.rotation ?? 0}deg)` }}>
         <defs>
@@ -89,7 +94,24 @@ function SvgShape({ opt }: { opt: SvgOption }) {
     );
   }
 
-  // Shapes
+  if (opt.kind === "dots") {
+    const n = opt.count ?? 3;
+    const r = 6;
+    const gap = 20;
+    const cols = 4;
+    return (
+      <svg width={size} height={size} viewBox="0 0 100 100">
+        {Array.from({ length: n }).map((_, i) => {
+          const row = Math.floor(i / cols);
+          const col = i % cols;
+          const cx = 20 + col * gap;
+          const cy = 20 + row * gap;
+          return <circle key={i} cx={cx} cy={cy} r={r} fill="#333" />;
+        })}
+      </svg>
+    );
+  }
+
   return (
     <svg width={size} height={size} viewBox="0 0 100 100" style={{ transform: `rotate(${opt.rotation ?? 0}deg)` }}>
       {opt.shape === "square" && <rect x="20" y="20" width="60" height="60" fill={fill} stroke={stroke} strokeWidth="4" />}
@@ -110,7 +132,7 @@ function SvgOptionButton({ opt, onClick, label }: { opt: SvgOption; onClick: () 
 }
 
 /** JSON bank loading **/
-type Bank = Record<Subject, Question[]>;
+type Bank = Record<Exclude<Subject, "reasoning">, Question[]>;
 
 async function loadBankFromPublic(pathRoot: string): Promise<Bank> {
   const [m, e, v, n] = await Promise.all([
@@ -122,37 +144,34 @@ async function loadBankFromPublic(pathRoot: string): Promise<Bank> {
   return { maths: m, english: e, vr: v, nvr: n };
 }
 
-/** Procedural NVR (SVG-based): odd-one-out by fill or rotation **/
+/** NVR SVG generators **/
 function genNvrSvg(count: number): Question[] {
   const shapes: SvgOption["shape"][] = ["triangle", "square", "circle", "diamond"];
   const out: Question[] = [];
   for (let i = 0; i < count; i++) {
-    const mode = Math.random() < 0.5 ? "fill" : "rotation";
+    const mode = pick(["fill", "rotation", "size", "count"]);
     if (mode === "fill") {
       const commonFill: "black" | "white" = Math.random() < 0.5 ? "black" : "white";
       const oddFill: "black" | "white" = commonFill === "black" ? "white" : "black";
       const options: SvgOption[] = [
-        { kind: "shape", shape: shapes[0], fill: commonFill },
-        { kind: "shape", shape: shapes[1], fill: commonFill },
-        { kind: "shape", shape: shapes[2], fill: commonFill },
-        { kind: "shape", shape: shapes[3], fill: oddFill },
+        { kind: "shape", shape: pick(shapes), fill: commonFill },
+        { kind: "shape", shape: pick(shapes), fill: commonFill },
+        { kind: "shape", shape: pick(shapes), fill: commonFill },
+        { kind: "shape", shape: pick(shapes), fill: oddFill },
       ];
       const order = shuffle([0, 1, 2, 3]);
-      const shuffled = order.map((idx) => options[idx]);
-      const answerIndex = order.indexOf(3);
       out.push({
-        id: `nvr-svg-fill-${i}-${commonFill}`,
+        id: `nvr-fill-${i}-${commonFill}`,
         subject: "nvr",
         stem: "Which is the odd one out? (by shading)",
         choices: ["A", "B", "C", "D"],
-        answerIndex,
-        svgOptions: shuffled,
+        answerIndex: order.indexOf(3),
+        svgOptions: order.map(idx => options[idx]),
         explanation: `Three are ${commonFill}-filled; one is ${oddFill}.`,
       });
-    } else {
-      // rotation-based with arrows
+    } else if (mode === "rotation") {
       const rot = pick([0, 90, 180, 270]);
-      const oddRot = (rot + 45) % 360; // odd at 45-degree offset
+      const oddRot = (rot + 45) % 360;
       const options: SvgOption[] = [
         { kind: "arrow", fill: "black", rotation: rot },
         { kind: "arrow", fill: "black", rotation: rot },
@@ -160,91 +179,166 @@ function genNvrSvg(count: number): Question[] {
         { kind: "arrow", fill: "black", rotation: oddRot },
       ];
       const order = shuffle([0, 1, 2, 3]);
-      const shuffled = order.map((idx) => options[idx]);
-      const answerIndex = order.indexOf(3);
       out.push({
-        id: `nvr-svg-rot-${i}-${rot}`,
+        id: `nvr-rot-${i}-${rot}`,
         subject: "nvr",
         stem: "Which arrow is different? (rotation)",
         choices: ["A", "B", "C", "D"],
-        answerIndex,
-        svgOptions: shuffled,
-        explanation: `Three arrows point at ${rot}°, one at ${oddRot}°.`,
+        answerIndex: order.indexOf(3),
+        svgOptions: order.map(idx => options[idx]),
+        explanation: `Three are at ${rot}°, one at ${oddRot}°.`,
+      });
+    } else if (mode === "size") {
+      const commonSize = pick([56, 64, 72]);
+      const oddSize = commonSize + 16;
+      const shape = pick(shapes);
+      const options: SvgOption[] = [
+        { kind: "shape", shape, fill: "white", size: commonSize },
+        { kind: "shape", shape, fill: "white", size: commonSize },
+        { kind: "shape", shape, fill: "white", size: commonSize },
+        { kind: "shape", shape, fill: "white", size: oddSize },
+      ];
+      const order = shuffle([0, 1, 2, 3]);
+      out.push({
+        id: `nvr-size-${i}-${shape}`,
+        subject: "nvr",
+        stem: "Which is the odd one out? (by size)",
+        choices: ["A", "B", "C", "D"],
+        answerIndex: order.indexOf(3),
+        svgOptions: order.map(idx => options[idx]),
+        explanation: "One is larger than the other three.",
+      });
+    } else { // count
+      const common = pick([3,4,5]);
+      const odd = common + 2;
+      const options: SvgOption[] = [
+        { kind: "dots", fill: "black", count: common },
+        { kind: "dots", fill: "black", count: common },
+        { kind: "dots", fill: "black", count: common },
+        { kind: "dots", fill: "black", count: odd },
+      ];
+      const order = shuffle([0, 1, 2, 3]);
+      out.push({
+        id: `nvr-count-${i}-${common}`,
+        subject: "nvr",
+        stem: "Which set has a different number of dots?",
+        choices: ["A", "B", "C", "D"],
+        answerIndex: order.indexOf(3),
+        svgOptions: order.map(idx => options[idx]),
+        explanation: `Three options show ${common} dots; one shows ${odd}.`,
       });
     }
   }
   return out;
 }
 
-/** Procedural Maths with simple SVG diagrams (rectangle & right triangle) **/
+/** Maths generators (diagrams + properties) **/
 function genMathGeometry(count: number): Question[] {
   const out: Question[] = [];
   for (let i = 0; i < count; i++) {
-    const kind = Math.random() < 0.5 ? "rect-area" : "tri-area";
+    const kind = pick(["rect-area", "tri-area", "rect-perim", "tri-perim", "angle-line", "angle-tri", "symmetry"]);
     if (kind === "rect-area") {
-      const w = randInt(3, 12);
-      const h = randInt(3, 12);
+      const w = randInt(3, 12), h = randInt(3, 12);
       const ans = w * h;
       const choices = shuffle([ans, ans + randInt(1, 5), Math.max(1, ans - randInt(1, 5)), ans + randInt(6, 10)]).map(String);
-      out.push({
-        id: `math-rect-${i}-${w}x${h}`,
-        subject: "maths",
-        stem: `A rectangle is shown. What is its area? (units²)`,
-        choices,
-        answerIndex: choices.indexOf(String(ans)),
-        explanation: `Area = width × height = ${w} × ${h} = ${ans}.`,
-        svgOptions: [{ kind: "shape", shape: "square", fill: "white", size: 80 }], // diagram rendered separately
-      });
-    } else {
-      const b = randInt(4, 12);
-      const h = randInt(3, 10);
-      const ans = 0.5 * b * h;
-      const ansStr = String(Number.isInteger(ans) ? ans : Math.round(ans * 10) / 10);
+      out.push({ id: `math-rectA-${i}-${w}x${h}`, subject: "maths", stem: "A rectangle is shown. What is its area (units²)?", choices, answerIndex: choices.indexOf(String(ans)), explanation: `Area = ${w} × ${h} = ${ans}.` });
+    } else if (kind === "tri-area") {
+      const b = randInt(4, 12), h = randInt(3, 10);
+      const ans = 0.5 * b * h; const ansStr = String(Number.isInteger(ans) ? ans : Math.round(ans * 10) / 10);
       const distract = [Number(ansStr) + randInt(1, 4), Math.max(1, Number(ansStr) - randInt(1, 4)), Number(ansStr) + randInt(5, 9)].map(String);
       const choices = shuffle([ansStr, ...distract]);
-      out.push({
-        id: `math-tri-${i}-${b}-${h}`,
-        subject: "maths",
-        stem: `A right triangle is shown. What is its area? (units²)`,
-        choices,
-        answerIndex: choices.indexOf(ansStr),
-        explanation: `Area = ½ × base × height = 0.5 × ${b} × ${h} = ${ansStr}.`,
-        svgOptions: [{ kind: "shape", shape: "triangle", fill: "white", size: 80 }],
-      });
+      out.push({ id: `math-triA-${i}-${b}-${h}`, subject: "maths", stem: "A right triangle is shown. What is its area (units²)?", choices, answerIndex: choices.indexOf(ansStr), explanation: `Area = ½ × ${b} × ${h} = ${ansStr}.` });
+    } else if (kind === "rect-perim") {
+      const w = randInt(3, 12), h = randInt(3, 12);
+      const ans = 2*(w+h);
+      const choices = shuffle([ans, ans + 2, Math.max(1, ans - 2), ans + 4]).map(String);
+      out.push({ id: `math-rectP-${i}-${w}x${h}`, subject: "maths", stem: "A rectangle is shown. What is its perimeter (units)?", choices, answerIndex: choices.indexOf(String(ans)), explanation: `Perimeter = 2×(w+h) = 2×(${w}+${h}) = ${ans}.` });
+    } else if (kind === "tri-perim") {
+      const a = randInt(3,10), b = randInt(4,11), c = randInt(5,12);
+      const ans = a+b+c;
+      const choices = shuffle([ans, ans+1, Math.max(1, ans-1), ans+3]).map(String);
+      out.push({ id: `math-triP-${i}-${a}-${b}-${c}`, subject: "maths", stem: "A triangle has side lengths shown. What is its perimeter (units)?", choices, answerIndex: choices.indexOf(String(ans)), explanation: `Perimeter = ${a}+${b}+${c} = ${ans}.` });
+    } else if (kind === "angle-line") {
+      const known = randInt(40, 140);
+      const ans = 180 - known;
+      const choices = shuffle([ans, ans + randInt(1,5), Math.max(1, ans - randInt(1,5)), known]).map(String);
+      out.push({ id: `math-angL-${i}-${known}`, subject: "maths", stem: "Angles on a straight line add to 180°. Find the missing angle.", choices, answerIndex: choices.indexOf(String(ans)), explanation: `180° − ${known}° = ${ans}°.` });
+    } else if (kind === "angle-tri") {
+      const a = randInt(30, 80), b = randInt(30, 80); const ans = 180 - a - b;
+      const choices = shuffle([ans, ans + randInt(1,4), Math.max(1, ans - randInt(1,4)), a]).map(String);
+      out.push({ id: `math-angT-${i}-${a}-${b}`, subject: "maths", stem: "Angles in a triangle add to 180°. Find the missing angle.", choices, answerIndex: choices.indexOf(String(ans)), explanation: `180° − ${a}° − ${b}° = ${ans}°.` });
+    } else {
+      const shape = pick(["square", "rectangle", "isosceles triangle"]);
+      let ans = 0;
+      if (shape === "square") ans = 4;
+      else if (shape === "rectangle") ans = 2;
+      else ans = 1;
+      const choices = shuffle([ans, ans + 1, Math.max(0, ans - 1), ans + 2]).map(String);
+      out.push({ id: `math-symm-${i}-${shape.replace(" ","_")}`, subject: "maths", stem: `How many lines of symmetry does a ${shape} have?`, choices, answerIndex: choices.indexOf(String(ans)), explanation: `${shape} has ${ans} line(s) of symmetry.` });
     }
   }
   return out;
 }
 
-/** Render Maths diagrams for current question if it's geometry **/
+/** Maths diagrams for specific IDs **/
 function MathsDiagram({ qid }: { qid: string }) {
-  if (qid.startsWith("math-rect-")) {
+  if (qid.startsWith("math-rectA-") || qid.startsWith("math-rectP-")) {
     const parts = qid.split("-");
     const dims = parts[3];
     const [wStr, hStr] = dims.split("x");
-    const w = parseInt(wStr, 10);
-    const h = parseInt(hStr, 10);
+    const w = parseInt(wStr, 10), h = parseInt(hStr, 10);
     return (
-      <svg width="220" height="140" viewBox="0 0 220 140">
-        <rect x="40" y="20" width="140" height="90" fill="#fff" stroke="#333" strokeWidth="4" />
-        <text x="110" y="15" textAnchor="middle" fontSize="14" fill="#333">width = {w}</text>
-        <text x="190" y="70" textAnchor="middle" transform="rotate(90 190 70)" fontSize="14" fill="#333">height = {h}</text>
+      <svg width="240" height="150" viewBox="0 0 240 150">
+        <rect x="40" y="30" width="150" height="80" fill="#fff" stroke="#333" strokeWidth="4" />
+        <text x="115" y="22" textAnchor="middle" fontSize="14" fill="#333">w = {w}</text>
+        <text x="198" y="70" textAnchor="middle" transform="rotate(90 198 70)" fontSize="14" fill="#333">h = {h}</text>
       </svg>
     );
   }
-  if (qid.startsWith("math-tri-")) {
+  if (qid.startsWith("math-triA-")) {
     const parts = qid.split("-");
-    const b = parseInt(parts[3], 10);
-    const h = parseInt(parts[4], 10);
+    const b = parseInt(parts[3], 10), h = parseInt(parts[4], 10);
     return (
-      <svg width="220" height="160" viewBox="0 0 220 160">
-        <polygon points="40,130 180,130 40,30" fill="#fff" stroke="#333" strokeWidth="4" />
-        <line x1="40" y1="130" x2="180" y2="130" stroke="#333" strokeWidth="2" />
-        <line x1="40" y1="130" x2="40" y2="30" stroke="#333" strokeWidth="2" />
-        <text x="110" y="148" textAnchor="middle" fontSize="14" fill="#333">base = {b}</text>
-        <text x="24" y="80" textAnchor="middle" transform="rotate(-90 24 80)" fontSize="14" fill="#333">height = {h}</text>
-        {/* right angle box */}
-        <rect x="40" y="120" width="10" height="10" fill="#fff" stroke="#333" strokeWidth="2" />
+      <svg width="240" height="170" viewBox="0 0 240 170">
+        <polygon points="40,140 200,140 40,40" fill="#fff" stroke="#333" strokeWidth="4" />
+        <line x1="40" y1="140" x2="200" y2="140" stroke="#333" strokeWidth="2" />
+        <line x1="40" y1="140" x2="40" y2="40" stroke="#333" strokeWidth="2" />
+        <rect x="40" y="130" width="10" height="10" fill="#fff" stroke="#333" strokeWidth="2" />
+        <text x="120" y="158" textAnchor="middle" fontSize="14" fill="#333">base = {b}</text>
+        <text x="24" y="85" textAnchor="middle" transform="rotate(-90 24 85)" fontSize="14" fill="#333">height = {h}</text>
+      </svg>
+    );
+  }
+  if (qid.startsWith("math-triP-")) {
+    const parts = qid.split("-");
+    const a = parseInt(parts[3],10), b = parseInt(parts[4],10), c = parseInt(parts[5],10);
+    return (
+      <svg width="240" height="170" viewBox="0 0 240 170">
+        <polygon points="60,140 180,140 120,50" fill="#fff" stroke="#333" strokeWidth="4" />
+        <text x="120" y="155" textAnchor="middle" fontSize="14" fill="#333">{a}+{b}+{c}</text>
+      </svg>
+    );
+  }
+  if (qid.startsWith("math-angL-")) {
+    const known = parseInt(qid.split("-")[3],10);
+    return (
+      <svg width="260" height="120" viewBox="0 0 260 120">
+        <line x1="30" y1="80" x2="230" y2="80" stroke="#333" strokeWidth="4" />
+        <line x1="130" y1="80" x2="80" y2="40" stroke="#333" strokeWidth="4" />
+        <text x="90" y="48" fontSize="14" fill="#333">{known}°</text>
+        <text x="180" y="70" fontSize="14" fill="#333">?</text>
+      </svg>
+    );
+  }
+  if (qid.startsWith("math-angT-")) {
+    const parts = qid.split("-");
+    const a = parseInt(parts[3],10), b = parseInt(parts[4],10);
+    return (
+      <svg width="240" height="170" viewBox="0 0 240 170">
+        <polygon points="40,140 200,140 120,40" fill="none" stroke="#333" strokeWidth="4" />
+        <text x="55" y="130" fontSize="14" fill="#333">{a}°</text>
+        <text x="180" y="130" fontSize="14" fill="#333">{b}°</text>
+        <text x="120" y="80" fontSize="14" fill="#333">?</text>
       </svg>
     );
   }
@@ -263,13 +357,12 @@ export default function Page() {
 
   const [bank, setBank] = useState<Bank>({ maths: [], english: [], vr: [], nvr: [] });
   const [questions, setQuestions] = useState<Question[]>([]);
-
   const lastIdsRef = useRef<Set<string>>(new Set());
 
   useEffect(() => {
     async function loadAll() {
       try {
-        // If your files are directly under /public, change pathRoot to "" instead of "/questions"
+        // Change "/questions" to "" if your JSON files sit directly under /public
         const loaded = await loadBankFromPublic("/questions");
         setBank(loaded);
       } catch (e) {
@@ -298,11 +391,21 @@ export default function Page() {
   const remainingToday = Math.max(0, DAILY_CAP_SECONDS - dailyUsed);
 
   function buildQuizSet(subj: Subject, count: number): Question[] {
+    if (subj === "reasoning") {
+      // Mix VR + NVR
+      const vrPool = bank.vr ?? [];
+      const nvrPool = bank.nvr ?? [];
+      const nvrGen = genNvrSvg(Math.max(12, Math.ceil(count / 2) + 6));
+      const pool = shuffle([...vrPool, ...nvrPool, ...nvrGen]).sort((a, b) => (lastIdsRef.current.has(a.id) ? 1 : 0) - (lastIdsRef.current.has(b.id) ? 1 : 0));
+      let uniq = uniqueBy(pool, q => q.stem).slice(0, count);
+      if (uniq.length < count) uniq = uniqueBy([...pool, ...nvrGen], q => q.stem).slice(0, count);
+      return uniq;
+    }
+
     const core = bank[subj] || [];
-    // Augment with generators for NVR and Maths
     const generated =
       subj === "nvr" ? genNvrSvg(Math.max(12, count + 6)) :
-      subj === "maths" ? genMathGeometry(Math.max(12, Math.ceil(count / 2))) :
+      subj === "maths" ? genMathGeometry(Math.max(16, Math.ceil(count))) :
       [];
     const pool = shuffle([...core, ...generated]).sort((a, b) => (lastIdsRef.current.has(a.id) ? 1 : 0) - (lastIdsRef.current.has(b.id) ? 1 : 0));
     let uniq = uniqueBy(pool, (q) => q.stem).slice(0, count);
@@ -344,7 +447,7 @@ export default function Page() {
 
   return (
     <div style={{ minHeight: "100vh", background: "linear-gradient(180deg,#c8e6c9,#a5d6a7)", color: "#20351f", padding: 24, boxSizing: "border-box" }}>
-      <div style={{ maxWidth: 980, margin: "0 auto", display: "grid", gap: 16 }}>
+      <div style={{ maxWidth: 1000, margin: "0 auto", display: "grid", gap: 16 }}>
         <h1 style={{ fontSize: 28, fontWeight: 800, textShadow: "2px 2px #8fbf7a", marginBottom: 8 }}>11+ Adventure — Quiz</h1>
         <div style={{ opacity: 0.8, fontSize: 14, marginBottom: 8 }}>Minecraft-inspired • Kent/Bexley • 10-min quizzes • 30-min daily cap</div>
 
@@ -354,7 +457,7 @@ export default function Page() {
               {!canStart && (
                 <div style={{ padding: 12, borderRadius: 10, background: "#ffe8d2", border: "2px solid #cc8a4a" }}>
                   <div style={{ fontWeight: 700 }}>Daily time done — amazing work!</div>
-                  <div>You&apos;ve reached 30 minutes today. Come back tomorrow. 💚</div>
+                  <div>You've reached 30 minutes today. Come back tomorrow. 💚</div>
                 </div>
               )}
 
@@ -363,9 +466,12 @@ export default function Page() {
                 <BlockButton disabled={!canStart} onClick={() => startQuiz("english")}>English</BlockButton>
                 <BlockButton disabled={!canStart} onClick={() => startQuiz("vr")}>VR</BlockButton>
                 <BlockButton disabled={!canStart} onClick={() => startQuiz("nvr")}>NVR</BlockButton>
+                <BlockButton disabled={!canStart} onClick={() => startQuiz("reasoning")} style={{ background: "#a2d06e" }}>Reasoning (VR+NVR)</BlockButton>
               </div>
 
-              <div style={{ fontSize: 12, opacity: 0.75 }}>Question counts — Maths: {QUESTION_COUNT.maths} · English: {QUESTION_COUNT.english} · VR: {QUESTION_COUNT.vr} · NVR: {QUESTION_COUNT.nvr}</div>
+              <div style={{ fontSize: 12, opacity: 0.75 }}>
+                Question counts — Maths: {QUESTION_COUNT.maths} · English: {QUESTION_COUNT.english} · VR: {QUESTION_COUNT.vr} · NVR: {QUESTION_COUNT.nvr} · Reasoning: {QUESTION_COUNT.reasoning}
+              </div>
             </div>
           </Card>
         )}
@@ -387,14 +493,13 @@ export default function Page() {
 
               <div style={{ fontSize: 20, fontWeight: 700 }}>{current.stem}</div>
 
-              {/* If this is a geometry maths question, draw the diagram */}
-              {subject === "maths" && current.id.startsWith("math-") && (
+              {(current.id.startsWith("math-rect") || current.id.startsWith("math-tri") || current.id.startsWith("math-ang")) && (
                 <div style={{ display: "grid", placeItems: "center", padding: 8 }}>
                   <MathsDiagram qid={current.id} />
                 </div>
               )}
 
-              <div style={{ display: "grid", gap: 10 }}>
+              <div style={{ display: "grid", gap: 10, gridTemplateColumns: current.svgOptions ? "repeat(auto-fit, minmax(120px, 1fr))" : "1fr" }}>
                 {current.svgOptions
                   ? current.svgOptions.map((opt, i) => (
                       <SvgOptionButton key={i} opt={opt} label={current.choices[i] || `Option ${i + 1}`} onClick={() => answer(i)} />
@@ -427,7 +532,7 @@ export default function Page() {
                   return (
                     <div key={q.id} style={{ border: "2px solid #6f9e63", borderRadius: 10, padding: 12, background: "#eef7ea" }}>
                       <div style={{ fontWeight: 700 }}>Q{i + 1}. {q.stem}</div>
-                      {q.id.startsWith("math-") && (
+                      {(q.id.startsWith("math-rect") || q.id.startsWith("math-tri") || q.id.startsWith("math-ang")) && (
                         <div style={{ display: "grid", placeItems: "start", padding: "8px 0" }}>
                           <MathsDiagram qid={q.id} />
                         </div>
