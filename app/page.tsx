@@ -1,29 +1,21 @@
-import React, { useEffect, useState } from "react";
+"use client";
 
-// 11+ PRACTICE STARTER — Minecraft-styled, Kent/Bexley focus
-// 10-min quizzes • 30-min daily cap • Settings (Year 4 / Year 5 / Final Dash)
+import { useEffect, useState, type ReactNode } from "react";
 
-// ------------------------------
-// Types
-// ------------------------------
-
+/** Types **/
 type Subject = "maths" | "english" | "vr" | "nvr";
-type GradeLevel = "Y4" | "Y5" | "DASH";
+type Mode = "menu" | "quiz" | "results";
 
 type Question = {
   id: string;
   subject: Subject;
   stem: string;
-  choices?: string[];
-  answerIndex?: number;
-  answerText?: string;
+  choices: string[];
+  answerIndex: number;
   explanation?: string;
 };
 
-// ------------------------------
-// Simple question bank (replace/expand later)
-// ------------------------------
-
+/** Minimal bank (expand later) **/
 const BASE_BANK: Question[] = [
   {
     id: "maths-01",
@@ -31,7 +23,7 @@ const BASE_BANK: Question[] = [
     stem: "What is 3/4 of 20?",
     choices: ["12", "13", "14", "15"],
     answerIndex: 3,
-    explanation: "3/4 × 20 = 15",
+    explanation: "3/4 × 20 = 15.",
   },
   {
     id: "english-01",
@@ -59,79 +51,98 @@ const BASE_BANK: Question[] = [
   },
 ];
 
-// ------------------------------
-// Timers
-// ------------------------------
-
-const QUIZ_SECONDS = 10 * 60; // 10 minutes per quiz
-const DAILY_CAP_SECONDS = 30 * 60; // 30 minutes per day
+/** Timers **/
+const QUIZ_SECONDS = 10 * 60; // 10min per quiz
+const DAILY_CAP_SECONDS = 30 * 60; // 30min per day
 
 function todayKey() {
   const d = new Date();
-  return `${d.getFullYear()}-${d.getMonth() + 1}-${d.getDate()}`;
+  const mm = String(d.getMonth() + 1).padStart(2, "0");
+  const dd = String(d.getDate()).padStart(2, "0");
+  return `${d.getFullYear()}-${mm}-${dd}`;
 }
-
 function getUsedSecondsToday(): number {
-  const key = `quizTime_${todayKey()}`;
   if (typeof window === "undefined") return 0;
-  return parseInt(localStorage.getItem(key) || "0", 10) || 0;
+  const v = localStorage.getItem(`quizTime_${todayKey()}`) ?? "0";
+  return parseInt(v, 10) || 0;
 }
-
 function addUsedSecondsToday(delta: number) {
   const key = `quizTime_${todayKey()}`;
   const cur = getUsedSecondsToday();
   localStorage.setItem(key, String(cur + delta));
 }
 
-// ------------------------------
-// UI helpers (Minecraft-y)
-// ------------------------------
+/** Simple Minecraft-y UI (inline styles = no Tailwind needed) **/
+function Card({ children }: { children: ReactNode }) {
+  return (
+    <div
+      style={{
+        borderRadius: 16,
+        border: "4px solid #3b3b3b",
+        boxShadow: "0 8px 24px rgba(0,0,0,0.1)",
+        padding: 16,
+        background: "linear-gradient(135deg,#e8f7e8,#d4eed4)",
+      }}
+    >
+      {children}
+    </div>
+  );
+}
+function BlockButton(
+  props: React.ButtonHTMLAttributes<HTMLButtonElement> & { children: ReactNode }
+) {
+  const { children, style, ...rest } = props;
+  return (
+    <button
+      {...rest}
+      style={{
+        padding: "12px 16px",
+        borderRadius: 12,
+        border: "4px solid #2f4f2f",
+        boxShadow: "0 2px 0 rgba(0,0,0,0.15)",
+        background: "#7cc76b",
+        fontWeight: 700,
+        letterSpacing: 0.2,
+        cursor: "pointer",
+        ...(style || {}),
+      }}
+    >
+      {children}
+    </button>
+  );
+}
+function Pill({ children }: { children: ReactNode }) {
+  return (
+    <span
+      style={{
+        display: "inline-block",
+        padding: "6px 12px",
+        borderRadius: 999,
+        background: "#cfe9c9",
+        border: "1px solid #5a8151",
+        fontSize: 12,
+      }}
+    >
+      {children}
+    </span>
+  );
+}
 
-const Card: React.FC<{ children: React.ReactNode }> = ({ children }) => (
-  <div className="rounded-2xl border-4 border-[#3b3b3b] shadow-xl p-4 bg-gradient-to-br from-[#e8f7e8] to-[#d4eed4]">
-    {children}
-  </div>
-);
-
-const BlockButton: React.FC<React.ButtonHTMLAttributes<HTMLButtonElement>> = ({
-  children,
-  ...props
-}) => (
-  <button
-    className="px-4 py-3 rounded-xl border-4 border-[#2f4f2f] shadow bg-[#7cc76b] hover:bg-[#8dde79] font-semibold tracking-wide"
-    {...props}
-  >
-    {children}
-  </button>
-);
-
-const Pill: React.FC<{ children: React.ReactNode }> = ({ children }) => (
-  <span className="inline-block px-3 py-1 rounded-full bg-[#cfe9c9] border border-[#5a8151] text-sm">
-    {children}
-  </span>
-);
-
-// ------------------------------
-// Main Component
-// ------------------------------
-
-type Mode = "menu" | "quiz" | "results";
-type AnswerRecord = { qid: string; correct: boolean; givenIndex?: number };
-
-const Page: React.FC = () => {
+/** Page Component **/
+export default function Page() {
   const [mode, setMode] = useState<Mode>("menu");
   const [subject, setSubject] = useState<Subject | null>(null);
   const [questions, setQuestions] = useState<Question[]>([]);
   const [index, setIndex] = useState(0);
   const [secondsLeft, setSecondsLeft] = useState(QUIZ_SECONDS);
-  const [answers, setAnswers] = useState<AnswerRecord[]>([]);
-  const [startedAt, setStartedAt] = useState<number | null>(null);
-  const [dailyUsed, setDailyUsed] = useState<number>(0);
+  const [answers, setAnswers] = useState<number[]>([]);
+  const [dailyUsed, setDailyUsed] = useState(0);
 
   useEffect(() => {
     setDailyUsed(getUsedSecondsToday());
   }, []);
 
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => {
     if (mode !== "quiz") return;
     if (secondsLeft <= 0) {
@@ -146,80 +157,78 @@ const Page: React.FC = () => {
 
   function startQuiz(subj: Subject) {
     if (!canStart) return;
-    const qs = BASE_BANK.filter((q) => q.subject === subj);
     setSubject(subj);
-    setQuestions(qs);
+    setQuestions(BASE_BANK.filter((q) => q.subject === subj));
     setIndex(0);
     setAnswers([]);
-    setSecondsLeft(QUIZ_SECONDS);
-    setStartedAt(Date.now());
+    setSecondsLeft(Math.min(QUIZ_SECONDS, DAILY_CAP_SECONDS - dailyUsed));
     setMode("quiz");
   }
 
-  function answerCurrent(choiceIndex: number) {
-    const q = questions[index];
-    if (!q) return;
-    const correct = q.answerIndex === choiceIndex;
-    setAnswers((prev) => [...prev, { qid: q.id, correct, givenIndex: choiceIndex }]);
-    if (index + 1 < questions.length && secondsLeft > 0) setIndex((i) => i + 1);
+  function answer(choiceIndex: number) {
+    setAnswers((prev) => [...prev, choiceIndex]);
+    if (index + 1 < questions.length) setIndex((i) => i + 1);
     else endQuiz();
   }
 
   function endQuiz() {
-    const elapsed = Math.max(0, QUIZ_SECONDS - secondsLeft);
-    addUsedSecondsToday(elapsed);
+    const elapsed = QUIZ_SECONDS - secondsLeft;
+    addUsedSecondsToday(Math.max(0, elapsed));
     setDailyUsed(getUsedSecondsToday());
     setMode("results");
   }
 
-  const current = questions[index];
-  const correctCount = answers.filter((a) => a.correct).length;
+  const current = questions[index] || null;
+  const correctCount = answers.filter((a, i) => questions[i]?.answerIndex === a).length;
 
-  const header = (
-    <div className="w-full flex flex-col gap-2">
-      <div className="flex items-center justify-between">
+  return (
+    <div
+      style={{
+        minHeight: "100vh",
+        background: "linear-gradient(180deg,#c8e6c9,#a5d6a7)",
+        color: "#20351f",
+        padding: 24,
+        boxSizing: "border-box",
+      }}
+    >
+      <div style={{ maxWidth: 880, margin: "0 auto", display: "grid", gap: 16 }}>
         <h1
-          className="text-2xl sm:text-3xl font-extrabold tracking-tight"
-          style={{ textShadow: "2px 2px #8fbf7a" }}
+          style={{
+            fontSize: 28,
+            fontWeight: 800,
+            textShadow: "2px 2px #8fbf7a",
+            marginBottom: 8,
+          }}
         >
           11+ Adventure — Quiz
         </h1>
-        <div className="flex items-center gap-2">
-          <Pill>
-            Daily: {Math.floor(dailyUsed / 60)}m/{Math.floor(DAILY_CAP_SECONDS / 60)}m
-          </Pill>
-          {mode === "quiz" && (
-            <Pill>
-              Time Left: {Math.floor(secondsLeft / 60)}:
-              {String(secondsLeft % 60).padStart(2, "0")}
-            </Pill>
-          )}
+        <div style={{ opacity: 0.8, fontSize: 14, marginBottom: 8 }}>
+          Minecraft-inspired • Kent/Bexley • 10-min quizzes • 30-min daily cap
         </div>
-      </div>
-      <div className="text-sm opacity-80">
-        Minecraft-inspired • Kent/Bexley • Y4/Y5/Final Dash • 10-minute quizzes • 30-minute daily cap
-      </div>
-    </div>
-  );
-
-  return (
-    <div className="min-h-screen bg-[linear-gradient(180deg,#c8e6c9,#a5d6a7)] text-[#20351f] p-4 sm:p-8">
-      <div className="max-w-3xl mx-auto space-y-6">
-        {header}
 
         {mode === "menu" && (
           <Card>
-            <div className="flex flex-col gap-4">
-              <div className="text-lg">Choose a realm to explore:</div>
+            <div style={{ display: "grid", gap: 12 }}>
               {!canStart && (
-                <div className="p-3 rounded-lg bg-[#ffe8d2] border-2 border-[#cc8a4a]">
-                  <div className="font-semibold">Daily time done — amazing work!</div>
-                  <div>
-                    You've reached 30 minutes today. Come back tomorrow for more quests. 💚
-                  </div>
+                <div
+                  style={{
+                    padding: 12,
+                    borderRadius: 10,
+                    background: "#ffe8d2",
+                    border: "2px solid #cc8a4a",
+                  }}
+                >
+                  <div style={{ fontWeight: 700 }}>Daily time done — amazing work!</div>
+                  <div>You've reached 30 minutes today. Come back tomorrow. 💚</div>
                 </div>
               )}
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+              <div
+                style={{
+                  display: "grid",
+                  gridTemplateColumns: "repeat(4, minmax(0,1fr))",
+                  gap: 12,
+                }}
+              >
                 <BlockButton disabled={!canStart} onClick={() => startQuiz("maths")}>
                   Maths
                 </BlockButton>
@@ -239,17 +248,19 @@ const Page: React.FC = () => {
 
         {mode === "quiz" && current && (
           <Card>
-            <div className="flex flex-col gap-4">
-              <div className="flex items-center justify-between">
+            <div style={{ display: "grid", gap: 12 }}>
+              <div style={{ display: "flex", gap: 8, justifyContent: "space-between" }}>
                 <Pill>
-                  Q {index + 1} / {questions.length}
+                  Q {index + 1}/{questions.length}
                 </Pill>
-                <Pill>Subject: {subject}</Pill>
+                <Pill>
+                  Time: {Math.floor(secondsLeft / 60)}:{String(secondsLeft % 60).padStart(2, "0")}
+                </Pill>
               </div>
-              <div className="text-xl font-bold">{current.stem}</div>
-              <div className="grid gap-3">
-                {current.choices?.map((c, i) => (
-                  <BlockButton key={i} onClick={() => answerCurrent(i)}>
+              <div style={{ fontSize: 20, fontWeight: 700 }}>{current.stem}</div>
+              <div style={{ display: "grid", gap: 10 }}>
+                {current.choices.map((c, i) => (
+                  <BlockButton key={i} onClick={() => answer(i)}>
                     {c}
                   </BlockButton>
                 ))}
@@ -260,49 +271,15 @@ const Page: React.FC = () => {
 
         {mode === "results" && (
           <Card>
-            <div className="flex flex-col gap-4">
-              <div className="text-2xl font-extrabold">Results</div>
-              <div className="flex items-center gap-3 flex-wrap">
-                <Pill>
-                  Score: {correctCount} / {questions.length}
-                </Pill>
-                <Pill>Time used today: {Math.floor(getUsedSecondsToday() / 60)}m</Pill>
-              </div>
-              <div className="grid gap-3">
-                {questions.map((q, i) => {
-                  const ar = answers[i];
-                  const verdict = ar?.correct ? "✅ Correct" : "❌ Incorrect";
-                  const chosen =
-                    typeof ar?.givenIndex === "number" ? q.choices?.[ar.givenIndex] : "—";
-                  const correctAns =
-                    typeof q.answerIndex === "number"
-                      ? q.choices?.[q.answerIndex]
-                      : q.answerText;
-                  return (
-                    <div
-                      key={q.id}
-                      className="rounded-lg border-2 border-[#6f9e63] p-3 bg-[#eef7ea]"
-                    >
-                      <div className="font-semibold">
-                        Q{i + 1}. {q.stem}
-                      </div>
-                      <div className="text-sm">
-                        Your answer: <span className="font-semibold">{chosen}</span> • Correct:{" "}
-                        <span className="font-semibold">{correctAns}</span> • {verdict}
-                      </div>
-                      {q.explanation && (
-                        <div className="text-sm opacity-90 mt-1">
-                          Explanation: {q.explanation}
-                        </div>
-                      )}
-                    </div>
-                  );
-                })}
-              </div>
-              <div className="flex gap-3 flex-wrap">
+            <div style={{ display: "grid", gap: 12 }}>
+              <div style={{ fontSize: 22, fontWeight: 800 }}>Results</div>
+              <Pill>
+                Score: {correctCount}/{questions.length}
+              </Pill>
+              <div style={{ display: "flex", gap: 12, flexWrap: "wrap" }}>
                 <BlockButton onClick={() => setMode("menu")}>Back to Menu</BlockButton>
-                <BlockButton onClick={() => startQuiz(subject || "maths")}>
-                  Try another {subject}
+                <BlockButton onClick={() => subject && startQuiz(subject)}>
+                  Try another {subject ?? ""}
                 </BlockButton>
               </div>
             </div>
@@ -311,6 +288,4 @@ const Page: React.FC = () => {
       </div>
     </div>
   );
-};
-
-export default Page;
+}
