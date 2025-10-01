@@ -1,6 +1,6 @@
 export const metadata = {
   title: "11+ Adventure",
-  description: "Minecraft-styled 11+ practice site (Kent/Bexley focus).",
+  description: "Minecraft-styled 11+ practice (Kent/Bexley focus).",
 };
 
 export default function RootLayout({
@@ -11,7 +11,9 @@ export default function RootLayout({
   return (
     <html lang="en">
       <head />
-      <body className="min-h-screen bg-[#c8e6c9]">{children}</body>
+      <body style={{ margin: 0, minHeight: "100vh", background: "#c8e6c9" }}>
+        {children}
+      </body>
     </html>
   );
 }
