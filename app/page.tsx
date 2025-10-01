@@ -1,4 +1,4 @@
-// app/page.tsx — 11+ Adventure (lint-clean)
+// app/page.tsx — 11+ Adventure (lint-clean v2)
 "use client";
 
 import { useEffect, useState } from "react";
@@ -6,15 +6,6 @@ import { useEffect, useState } from "react";
 /** Types */
 type Subject = "maths" | "english" | "vr" | "nvr" | "comprehension" | "writing";
 type Mode = "menu" | "quiz" | "results" | "writing" | "writingResults";
-
-type SvgOption = {
-  kind: "shape" | "arrow" | "dots";
-  shape?: "triangle" | "square" | "circle" | "diamond";
-  fill: "black" | "white";
-  rotation?: number;
-  size?: number;
-  count?: number;
-};
 
 type Question = {
   id: string;
@@ -25,7 +16,6 @@ type Question = {
   explanation?: string;
   difficulty?: "easy" | "medium" | "hard";
   tags?: string[];
-  svgOptions?: SvgOption[]; // for NVR SVG buttons
 };
 
 type Passage = {
@@ -38,6 +28,14 @@ type Passage = {
     answerIndex: number;
     explanation?: string;
   }>;
+};
+
+type RawQuestion = {
+  id: string | number;
+  stem: string;
+  choices: string[];
+  answerIndex: number;
+  explanation?: string;
 };
 
 /** Config */
@@ -54,8 +52,6 @@ function addUsedSecondsToday(n:number){ const k=`quizTime_${todayKey()}`; const 
 /** Utils */
 function shuffle<T>(arr: readonly T[]) { const a=[...arr]; for(let i=a.length-1;i>0;i--){ const j=Math.floor(Math.random()*(i+1)); [a[i],a[j]]=[a[j],a[i]];} return a;}
 function uniqueBy<T>(arr: readonly T[], key:(t:T)=>string){ const s=new Set<string>(); const out:T[]=[]; for(const it of arr){ const k=key(it).toLowerCase().trim(); if(!s.has(k)){ s.add(k); out.push(it);} } return out;}
-function randInt(min:number,max:number){ return Math.floor(Math.random()*(max-min+1))+min; }
-function pick<T>(a: readonly T[]){ return a[Math.floor(Math.random()*a.length)]; }
 
 /** UI */
 const Card: React.FC<{children: React.ReactNode}> = ({children}) => (
@@ -68,98 +64,90 @@ const Pill: React.FC<{children: React.ReactNode}> = ({children}) => (
   <span style={{display:"inline-block",padding:"6px 12px",borderRadius:999,background:"#cfe9c9",border:"1px solid #5a8151",fontSize:12}}>{children}</span>
 );
 
-/** Generators — English */
-function genEnglishAntonyms(n=3): Question[]{
-  const items = [
+/** Generators — English (compact) */
+function buildEnglishBank(): Question[]{
+  const antonyms = [
     ["scarce","plentiful"],
     ["visible","hidden"],
     ["brave","cowardly"],
     ["polite","rude"],
   ] as const;
   const wrongPool = ["rare","tiny","quiet","careful","empty","gentle","many","loud","bold"];
-  const qs:Question[]=[];
-  for(let i=0;i<n;i++){
-    const [w,ant] = pick(items);
+  const q1 = Array.from({length:3}).map((_,i)=>{
+    const [w,ant] = antonyms[Math.floor(Math.random()*antonyms.length)];
     const choices = shuffle([ant, ...shuffle(wrongPool).slice(0,3)]);
-    qs.push({id:`eng-ant-${i}-${w}`,subject:"english",stem:`Select the best antonym for ${w}:`,choices,answerIndex:choices.indexOf(ant),difficulty:"medium"});
-  }
-  return qs;
-}
-function genEnglishVocabCtx(n=3): Question[]{
-  const items = [
+    return {id:`eng-ant-${i}-${w}`,subject:"english" as const,stem:`Select the best antonym for ${w}:`,choices,answerIndex:choices.indexOf(ant),difficulty:"medium" as const};
+  });
+
+  const vocabCtx = [
     {sent:"The room was in a *chaotic* state after the party.", correct:"disordered", wrongs:["silent","gleaming","fragile"]},
     {sent:"She gave a *reluctant* smile.", correct:"unwilling", wrongs:["excited","careless","angry"]},
     {sent:"The old map was *illegible*.", correct:"hard to read", wrongs:["easy to fold","ancient","fake"]},
   ] as const;
-  const out:Question[]=[];
-  for(let i=0;i<n;i++){ const it=pick(items); const choices=shuffle([it.correct,...it.wrongs]); out.push({id:`eng-vctx-${i}`,subject:"english",stem:it.sent+" — The underlined word most nearly means:",choices,answerIndex:choices.indexOf(it.correct),difficulty:"medium"}); }
-  return out;
-}
-function genEnglishPunct(n=2): Question[]{
-  const items = [
+  const q2 = Array.from({length:3}).map((_,i)=>{
+    const it = vocabCtx[Math.floor(Math.random()*vocabCtx.length)];
+    const choices = shuffle([it.correct, ...it.wrongs]);
+    return {id:`eng-vctx-${i}`,subject:"english" as const,stem:it.sent+" — The underlined word most nearly means:",choices,answerIndex:choices.indexOf(it.correct),difficulty:"medium" as const};
+  });
+
+  const punct = [
     {q:"Choose the correctly punctuated sentence:", correct:"The fox, swift and silent, darted away.", wrongs:["The fox swift and silent darted away.","The fox, swift and silent darted away.","The fox swift, and silent, darted away."]},
     {q:"Which sentence uses an apostrophe correctly?", correct:"It’s nearly time for lunch.", wrongs:["Its nearly time for lunch.","Its’ nearly time for lunch.","It nearly’s time for lunch."]},
   ] as const;
-  const out:Question[]=[];
-  for(let i=0;i<n;i++){ const it=pick(items); const choices=shuffle([it.correct,...it.wrongs]); out.push({id:`eng-punct-${i}`,subject:"english",stem:it.q,choices,answerIndex:choices.indexOf(it.correct),difficulty:"hard"}); }
-  return out;
-}
-function genEnglishCloze(n=2): Question[]{
-  const items = [
+  const q3 = Array.from({length:2}).map((_,i)=>{
+    const it = punct[Math.floor(Math.random()*punct.length)];
+    const choices = shuffle([it.correct, ...it.wrongs]);
+    return {id:`eng-punct-${i}`,subject:"english" as const,stem:it.q,choices,answerIndex:choices.indexOf(it.correct),difficulty:"hard" as const};
+  });
+
+  const cloze = [
     {stem:"They decided to ____ the hill before dusk.", correct:"climb", wrongs:["climbs","climbed","climbing"]},
     {stem:"I ____ my packed lunch today.", correct:"forgot", wrongs:["forget","forgets","forgetting"]},
   ] as const;
-  const out:Question[]=[];
-  for(let i=0;i<n;i++){ const it=pick(items); const choices=shuffle([it.correct,...it.wrongs]); out.push({id:`eng-clz-${i}`,subject:"english",stem:it.stem,choices,answerIndex:choices.indexOf(it.correct),difficulty:"easy"}); }
-  return out;
-}
-function buildEnglishBank(): Question[]{ return [...genEnglishAntonyms(3), ...genEnglishVocabCtx(3), ...genEnglishPunct(2), ...genEnglishCloze(2)]; }
+  const q4 = Array.from({length:2}).map((_,i)=>{
+    const it = cloze[Math.floor(Math.random()*cloze.length)];
+    const choices = shuffle([it.correct, ...it.wrongs]);
+    return {id:`eng-clz-${i}`,subject:"english" as const,stem:it.stem,choices,answerIndex:choices.indexOf(it.correct),difficulty:"easy" as const};
+  });
 
-/** Generators — Maths */
-function genMathFractions(n=4): Question[]{
-  const out:Question[]=[];
-  for(let i=0;i<n;i++){
-    const d = pick([4,5,8,10] as const);
-    const num = pick([1,2,3] as const);
-    const whole = randInt(12,60);
-    const ans = (num/d)*whole;
-    const correct = Math.round(ans*100)/100;
-    const choices = shuffle([correct, correct+randInt(1,3), Math.max(1,correct-randInt(1,3)), correct+randInt(4,6)]).map(x=>String(x));
-    out.push({id:`m-frac-${i}-${num}-${d}-${whole}`,subject:"maths",stem:`What is ${num}/${d} of ${whole}?`,choices,answerIndex:choices.indexOf(String(correct)),difficulty:"medium",explanation:`${num}/${d} × ${whole} = ${correct}.`});
-  }
-  return out;
+  return [...q1, ...q2, ...q3, ...q4];
 }
-function genMathPercent(n=3): Question[]{
-  const out:Question[]=[];
-  for(let i=0;i<n;i++){
-    const base = randInt(40,200);
-    const pct = pick([10,12,20,25] as const);
+
+/** Generators — Maths (compact) */
+function buildMathBank(): Question[]{
+  const out: Question[] = [];
+  for(let i=0;i<4;i++){
+    const d = [4,5,8,10][Math.floor(Math.random()*4)];
+    const num = [1,2,3][Math.floor(Math.random()*3)];
+    const whole = 12+Math.floor(Math.random()*49);
+    const ans = Math.round(((num/d)*whole)*100)/100;
+    const choices = shuffle([ans, ans+1, Math.max(1,ans-1), ans+2]).map(String);
+    out.push({id:`m-frac-${i}-${num}-${d}-${whole}`,subject:"maths",stem:`What is ${num}/${d} of ${whole}?`,choices,answerIndex:choices.indexOf(String(ans)),difficulty:"medium"});
+  }
+  for(let i=0;i<3;i++){
+    const base = 40+Math.floor(Math.random()*161);
+    const pct = [10,12,20,25][Math.floor(Math.random()*4)];
     const inc = Math.random()<0.5;
-    const ans = Math.round((inc? base*(1+pct/100) : base*(1-pct/100))*100)/100;
-    const choices = shuffle([ans, ans+randInt(1,5), Math.max(1,ans-randInt(1,5)), ans+randInt(6,10)]).map(String);
-    out.push({id:`m-pct-${i}-${base}-${pct}-${inc?'inc':'dec'}`,subject:"maths",stem:`${inc?"Increase":"Reduce"} £${base} by ${pct}%`,choices,answerIndex:choices.indexOf(String(ans)),difficulty:"medium",explanation:`£${base} × ${inc?"(1 + ":"(1 - "}${pct}/100) = ${ans}.`});
+    const ans = Math.round((inc? base*(1+pct/100): base*(1-pct/100))*100)/100;
+    const choices = shuffle([ans, ans+1, Math.max(1,ans-1), ans+3]).map(String);
+    out.push({id:`m-pct-${i}`,subject:"maths",stem:`${inc?"Increase":"Reduce"} £${base} by ${pct}%`,choices,answerIndex:choices.indexOf(String(ans)),difficulty:"medium"});
   }
-  return out;
-}
-function genMathWord(n=3): Question[]{
-  const out:Question[]=[];
-  for(let i=0;i<n;i++){
-    const price = randInt(2,9);
-    const qty = randInt(3,12);
+  for(let i=0;i<3;i++){
+    const price = 2+Math.floor(Math.random()*8);
+    const qty = 3+Math.floor(Math.random()*10);
     const ans = price*qty;
-    const choices = shuffle([ans, ans+randInt(1,4), Math.max(1,ans-randInt(1,4)), ans+randInt(5,9)]).map(String);
-    out.push({id:`m-word-${i}`,subject:"maths",stem:`Stickers cost £${price} each. How much for ${qty} stickers?`,choices,answerIndex:choices.indexOf(String(ans)),difficulty:"easy",explanation:`£${price} × ${qty} = £${ans}.`});
+    const choices = shuffle([ans, ans+2, Math.max(1,ans-2), ans+5]).map(String);
+    out.push({id:`m-word-${i}`,subject:"maths",stem:`Stickers cost £${price} each. How much for ${qty} stickers?`,choices,answerIndex:choices.indexOf(String(ans)),difficulty:"easy"});
   }
   return out;
 }
-function buildMathBank(): Question[]{ return [...genMathFractions(4), ...genMathPercent(3), ...genMathWord(3)]; }
 
-/** Generators — VR */
-function genVRSeries(n=3): Question[]{
-  const out:Question[]=[];
-  for(let i=0;i<n;i++){
-    const start = 65 + randInt(0,18);
-    const step = pick([1,2,3] as const);
+/** Generators — VR (compact) */
+function buildVRBank(): Question[]{
+  const out: Question[] = [];
+  for(let i=0;i<3;i++){
+    const start = 65 + Math.floor(Math.random()*19);
+    const step = [1,2,3][Math.floor(Math.random()*3)];
     const a = String.fromCharCode(start);
     const b = String.fromCharCode(start+step);
     const c = String.fromCharCode(start+step*2);
@@ -168,28 +156,34 @@ function genVRSeries(n=3): Question[]{
     const choices = shuffle([next,String.fromCharCode(next.charCodeAt(0)+1),String.fromCharCode(next.charCodeAt(0)-1),a]);
     out.push({id:`vr-ser-${i}`,subject:"vr",stem:`Find the next pair: ${a}${b}, ${b}${c}, ${c}${d}, ${d}${next[0]}, __`,choices,answerIndex:choices.indexOf(next),difficulty:"medium"});
   }
-  return out;
-}
-function genVRAnalogies(n=2): Question[]{ 
-  const items = [
+  const analogies = [
     {stem:"PUPIL is to SCHOOL as PATIENT is to ____", correct:"HOSPITAL", wrongs:["BED","WARD","NURSE"]},
     {stem:"BEE is to HIVE as BIRD is to ____", correct:"NEST", wrongs:["BARK","FLOCK","EGG"]},
   ] as const;
-  const out:Question[]=[]; 
-  for(let i=0;i<n;i++){ const it=pick(items); const choices=shuffle([it.correct,...it.wrongs]); out.push({id:`vr-ana-${i}`,subject:"vr",stem:it.stem,choices,answerIndex:choices.indexOf(it.correct),difficulty:"easy"}); }
+  for(let i=0;i<2;i++){
+    const it = analogies[Math.floor(Math.random()*analogies.length)];
+    const choices = shuffle([it.correct, ...it.wrongs]);
+    out.push({id:`vr-ana-${i}`,subject:"vr",stem:it.stem,choices,answerIndex:choices.indexOf(it.correct),difficulty:"easy"});
+  }
   return out;
 }
-function buildVRBank(): Question[]{ return [...genVRSeries(3), ...genVRAnalogies(2)]; }
 
 /** Data loading */
 async function loadCurated(subj: Exclude<Subject,"comprehension"|"writing">): Promise<Question[]>{
-  const map: Record<string,string> = { maths:"math", english:"english", vr:"vr", nvr:"nvr" };
+  const map: Record<Exclude<Subject,"comprehension"|"writing">, string> = { maths:"math", english:"english", vr:"vr", nvr:"nvr" };
   try{
     const res = await fetch(`/questions/${map[subj]}.json`);
-    const arr = await res.json();
+    const arr = await res.json() as unknown;
     if(Array.isArray(arr)) {
-      // Ensure type shape
-      return arr.map((q:any)=>({id:String(q.id),subject:subj as Question["subject"],stem:String(q.stem),choices:q.choices as string[],answerIndex:Number(q.answerIndex),explanation:q.explanation}));
+      const typed = (arr as RawQuestion[]).map((q)=> ({
+        id: String(q.id),
+        subject: subj,
+        stem: String(q.stem),
+        choices: q.choices,
+        answerIndex: Number(q.answerIndex),
+        explanation: q.explanation
+      }));
+      return typed;
     }
     return [];
   }catch{ return []; }
@@ -197,7 +191,7 @@ async function loadCurated(subj: Exclude<Subject,"comprehension"|"writing">): Pr
 async function loadComprehension(): Promise<Passage[]>{ 
   try{ 
     const res = await fetch("/questions/comprehension.json"); 
-    const arr = await res.json(); 
+    const arr = await res.json() as unknown; 
     return Array.isArray(arr)? arr as Passage[] : []; 
   }catch{ return []; } 
 }
@@ -285,6 +279,8 @@ export default function Page(){
     if(index+1<questions.length) setIndex(x=>x+1); else setMode("results");
   }
 
+  const correctCount = questions.reduce((acc, q, i)=> acc + (answers[i]===q.answerIndex ? 1 : 0), 0);
+
   /** Render */
   return (
     <div style={{minHeight:"100vh",background:"linear-gradient(180deg,#c8e6c9,#a5d6a7)",color:"#20351f",padding:24}}>
@@ -351,10 +347,16 @@ export default function Page(){
           <Card>
             <div style={{display:"grid",gap:12}}>
               <div style={{fontSize:22,fontWeight:800}}>Results</div>
+              <div style={{display:"flex",alignItems:"center",gap:12}}>
+                <div style={{width:72,height:72,borderRadius:"50%",background:"#9ad27a",border:"4px solid #2f4f2f",display:"flex",alignItems:"center",justifyContent:"center",fontSize:20,fontWeight:800}}>
+                  {correctCount}/{questions.length}
+                </div>
+                <div>Score</div>
+              </div>
               {questions.map((q,i)=>(
                 <div key={q.id} style={{border:"2px solid #6f9e63",borderRadius:10,padding:12,background:"#eef7ea"}}>
                   <div style={{fontWeight:700}}>Q{i+1}. {q.stem}</div>
-                  <div>Correct: <strong>{q.choices[q.answerIndex]}</strong></div>
+                  <div>Your answer: <strong>{typeof answers[i]==="number" ? q.choices[answers[i]] : "—"}</strong> • Correct: <strong>{q.choices[q.answerIndex]}</strong></div>
                 </div>
               ))}
               <div style={{display:"flex",gap:12,flexWrap:"wrap"}}>
