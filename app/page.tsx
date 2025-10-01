@@ -15,7 +15,7 @@ type QuestionType = "mcq" | "short" | "nvr";
 interface Option {
   id: string;
   text?: string;
-  svg?: JSX.Element;
+  svg?: React.ReactNode;
   correct: boolean;
 }
 
@@ -26,7 +26,7 @@ interface Question {
   prompt: string;
   options?: Option[]; // for mcq & nvr
   answer?: string; // for short
-  diagram?: JSX.Element; // for diagrams if needed
+  diagram?: React.ReactNode; // for diagrams if needed
 }
 
 interface PassageMCQOption { id: string; text: string; correct: boolean }
@@ -185,7 +185,7 @@ function generateMathsQuestions(year: YearGroup, difficulty: Difficulty): Questi
 // =========================
 // English Generator
 // =========================
-function generateEnglishQuestions(year: YearGroup, difficulty: Difficulty): Question[] {
+function generateEnglishQuestions(_year: YearGroup, _difficulty: Difficulty): Question[] {
   const total = rand(8, 12);
   const qs: Question[] = [];
   const used = new Set<string>();
@@ -269,7 +269,7 @@ function generateEnglishQuestions(year: YearGroup, difficulty: Difficulty): Ques
 // =========================
 // Verbal Reasoning (VR) Generator
 // =========================
-function generateVRQuestions(year: YearGroup, difficulty: Difficulty): Question[] {
+function generateVRQuestions(_year: YearGroup, _difficulty: Difficulty): Question[] {
   const total = rand(8, 12);
   const qs: Question[] = [];
   const used = new Set<string>();
@@ -280,7 +280,7 @@ function generateVRQuestions(year: YearGroup, difficulty: Difficulty): Question[
     if (kind === 1) {
       // Letter sequence
       const startIdx = rand(0, 20);
-      const step = byDifficulty(difficulty, rand(1, 3));
+      const step = byDifficulty(_difficulty, rand(1, 3));
       const seq = [0, 1, 2, 3].map((i) => alphabet[(startIdx + i * step) % 26]);
       const ans = alphabet[(startIdx + 4 * step) % 26];
       const key = `vr-seq:${seq.join("")}-${step}`;
@@ -335,7 +335,7 @@ function generateVRQuestions(year: YearGroup, difficulty: Difficulty): Question[
 // =========================
 // Non-Verbal Reasoning (NVR) Generator
 // =========================
-function shapeSVG(kind: "square" | "circle" | "triangle", size: number, fill: string, rotate: number): JSX.Element {
+function shapeSVG(kind: "square" | "circle" | "triangle", size: number, fill: string, rotate: number): React.ReactElement {
   const s = size;
   const half = s / 2;
   const common = { transform: `rotate(${rotate} ${half} ${half})` } as React.SVGProps<SVGGElement>;
@@ -350,7 +350,7 @@ function shapeSVG(kind: "square" | "circle" | "triangle", size: number, fill: st
   );
 }
 
-function generateNVRQuestions(year: YearGroup, difficulty: Difficulty): Question[] {
+function generateNVRQuestions(_year: YearGroup, _difficulty: Difficulty): Question[] {
   const total = rand(8, 12);
   const qs: Question[] = [];
   const used = new Set<string>();
