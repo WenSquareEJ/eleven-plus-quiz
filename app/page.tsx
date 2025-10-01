@@ -114,20 +114,27 @@ function uniqueByIdThenStem<T extends {id:string; stem?:string}>(arr: readonly T
 
 /** Recent-ID buffer across back-to-back quizzes (session only) */
 const RECENT_KEY = "recentIds_v1";
-function getRecentIds(): string[]{
-  if(typeof window==="undefined") return [];
-  try{ const raw=sessionStorage.getItem(RECENT_KEY); return raw? JSON.parse(raw): []; }catch{ return []; }
+
+function getRecentIds(): string[] {
+  if (typeof window === "undefined") return [];
+  try {
+    const raw = sessionStorage.getItem(RECENT_KEY);
+    return raw ? (JSON.parse(raw) as string[]) : [];
+  } catch {
+    return [];
+  }
 }
-function pushRecentIds(ids: string[]){
-  if(typeof window==="undefined") return;
-  const cur = getRecentIds();
-  const next = uniqueByIdThenStem(ids.map(id=>({id} as any))).map(o=>o.id);
-  const merged = uniqueByIdThenStem([...cur.map(id=>({id} as any)), ...next.map(id=>({id} as any))]).map(o=>o.id);
-  sessionStorage.setItem(RECENT_KEY, JSON.stringify(merged.slice(-60))); // cap buffer
+
+function pushRecentIds(ids: string[]) {
+  if (typeof window === "undefined") return;
+  const merged = [...getRecentIds(), ...ids];
+  const dedup = Array.from(new Set(merged));
+  sessionStorage.setItem(RECENT_KEY, JSON.stringify(dedup.slice(-120)));
 }
-function filterNotRecent<T extends {id:string}>(arr: readonly T[]){
+
+function filterNotRecent<T extends { id: string }>(arr: readonly T[]) {
   const recent = new Set(getRecentIds());
-  return arr.filter(q=>!recent.has(q.id));
+  return arr.filter((q) => !recent.has(q.id));
 }
 
 /** ========= Minecraft-y UI ========= */
