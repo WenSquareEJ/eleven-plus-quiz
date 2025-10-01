@@ -457,7 +457,7 @@ export default function Page() {
               {!canStart && (
                 <div style={{ padding: 12, borderRadius: 10, background: "#ffe8d2", border: "2px solid #cc8a4a" }}>
                   <div style={{ fontWeight: 700 }}>Daily time done — amazing work!</div>
-                  <div>You've reached 30 minutes today. Come back tomorrow. 💚</div>
+                  <div>You&apos;ve reached 30 minutes today. Come back tomorrow. 💚</div>
                 </div>
               )}
 
