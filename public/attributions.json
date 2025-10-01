@@ -1,0 +1,35 @@
+{
+  "generated_on": "2025-10-01T09:15:04.592566Z",
+  "notes": [
+    "This bank mixes algorithmically generated items with a tiny hand-written base set inspired by KS2 outcomes.",
+    "You should add official GL familiarisation items and KS2 SATs OGL items by paraphrasing and noting attribution.",
+    "Do NOT copy from paid publishers (Bond, CGP, Atom, etc.)."
+  ],
+  "sources": [
+    {
+      "name": "GL Assessment Familiarisation",
+      "url": "https://11plus.gl-assessment.co.uk/free-materials/",
+      "licence": "Free samples for practice (check usage per PDF)"
+    },
+    {
+      "name": "KS2 SATs (UK Government)",
+      "url": "https://www.gov.uk/government/collections/national-curriculum-assessments-practice-materials",
+      "licence": "Open Government Licence v3.0"
+    },
+    {
+      "name": "BBC Bitesize",
+      "url": "https://www.bbc.co.uk/bitesize",
+      "licence": "Free to link; paraphrase content rather than copying."
+    },
+    {
+      "name": "NRICH",
+      "url": "https://nrich.maths.org/",
+      "licence": "Free for educational use; paraphrase into MCQ format."
+    },
+    {
+      "name": "Oak National Academy",
+      "url": "https://www.thenational.academy/",
+      "licence": "Free lessons; paraphrase exercises."
+    }
+  ]
+}

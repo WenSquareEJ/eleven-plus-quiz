@@ -1,0 +1,15 @@
+[
+  {
+    "id": "n-0",
+    "subject": "nvr",
+    "stem": "Which is the odd one out? (descriptive)",
+    "choices": [
+      "■ square white",
+      "● circle white",
+      "▲ triangle white",
+      "◆ diamond black"
+    ],
+    "answerIndex": 3,
+    "explanation": "Three share fill=white; one is black."
+  }
+]

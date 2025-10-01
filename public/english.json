@@ -1,0 +1,301 @@
+[
+  {
+    "id": "e-0",
+    "subject": "english",
+    "stem": "Choose the best synonym for ‘silent’:",
+    "choices": [
+      "quiet",
+      "down",
+      "weak",
+      "noisy"
+    ],
+    "answerIndex": 0,
+    "explanation": "‘quiet’ is closest in meaning to ‘silent’."
+  },
+  {
+    "id": "e-1",
+    "subject": "english",
+    "stem": "Choose the best synonym for ‘small’:",
+    "choices": [
+      "reluctant",
+      "large",
+      "confused",
+      "tiny"
+    ],
+    "answerIndex": 3,
+    "explanation": "‘tiny’ is closest in meaning to ‘small’."
+  },
+  {
+    "id": "e-3",
+    "subject": "english",
+    "stem": "Choose the best synonym for ‘buy’:",
+    "choices": [
+      "reluctant",
+      "purchase",
+      "confused",
+      "slow"
+    ],
+    "answerIndex": 1,
+    "explanation": "‘purchase’ is closest in meaning to ‘buy’."
+  },
+  {
+    "id": "e-5",
+    "subject": "english",
+    "stem": "Choose the best synonym for ‘fast’:",
+    "choices": [
+      "down",
+      "dull",
+      "tired",
+      "quick"
+    ],
+    "answerIndex": 3,
+    "explanation": "‘quick’ is closest in meaning to ‘fast’."
+  },
+  {
+    "id": "e-6",
+    "subject": "english",
+    "stem": "Choose the best synonym for ‘start’:",
+    "choices": [
+      "slow",
+      "reluctant",
+      "noisy",
+      "begin"
+    ],
+    "answerIndex": 3,
+    "explanation": "‘begin’ is closest in meaning to ‘start’."
+  },
+  {
+    "id": "e-8",
+    "subject": "english",
+    "stem": "Choose the best synonym for ‘angry’:",
+    "choices": [
+      "tired",
+      "incorrect",
+      "weak",
+      "furious"
+    ],
+    "answerIndex": 3,
+    "explanation": "‘furious’ is closest in meaning to ‘angry’."
+  },
+  {
+    "id": "e-11",
+    "subject": "english",
+    "stem": "Choose the best synonym for ‘smart’:",
+    "choices": [
+      "clever",
+      "late",
+      "noisy",
+      "confused"
+    ],
+    "answerIndex": 0,
+    "explanation": "‘clever’ is closest in meaning to ‘smart’."
+  },
+  {
+    "id": "e-12",
+    "subject": "english",
+    "stem": "Choose the best synonym for ‘brave’:",
+    "choices": [
+      "dull",
+      "courageous",
+      "tired",
+      "weak"
+    ],
+    "answerIndex": 1,
+    "explanation": "‘courageous’ is closest in meaning to ‘brave’."
+  },
+  {
+    "id": "e-14",
+    "subject": "english",
+    "stem": "Choose the best synonym for ‘eager’:",
+    "choices": [
+      "incorrect",
+      "reluctant",
+      "worried",
+      "keen"
+    ],
+    "answerIndex": 3,
+    "explanation": "‘keen’ is closest in meaning to ‘eager’."
+  },
+  {
+    "id": "e-16",
+    "subject": "english",
+    "stem": "Choose the best synonym for ‘sad’:",
+    "choices": [
+      "unhappy",
+      "late",
+      "slow",
+      "reluctant"
+    ],
+    "answerIndex": 0,
+    "explanation": "‘unhappy’ is closest in meaning to ‘sad’."
+  },
+  {
+    "id": "e-17",
+    "subject": "english",
+    "stem": "Choose the best synonym for ‘happy’:",
+    "choices": [
+      "reluctant",
+      "weak",
+      "confused",
+      "cheerful"
+    ],
+    "answerIndex": 3,
+    "explanation": "‘cheerful’ is closest in meaning to ‘happy’."
+  },
+  {
+    "id": "e-pref-0",
+    "subject": "english",
+    "stem": "What does the prefix in ‘dislead’ mean?",
+    "choices": [
+      "not/opposite",
+      "together",
+      "after",
+      "without"
+    ],
+    "answerIndex": 0,
+    "explanation": "‘dis-’ means not/opposite."
+  },
+  {
+    "id": "e-pref-1",
+    "subject": "english",
+    "stem": "What does the prefix in ‘precover’ mean?",
+    "choices": [
+      "after",
+      "before",
+      "together",
+      "without"
+    ],
+    "answerIndex": 1,
+    "explanation": "‘pre-’ means before."
+  },
+  {
+    "id": "e-pref-3",
+    "subject": "english",
+    "stem": "What does the prefix in ‘misplace’ mean?",
+    "choices": [
+      "after",
+      "together",
+      "without",
+      "wrongly"
+    ],
+    "answerIndex": 3,
+    "explanation": "‘mis-’ means wrongly."
+  },
+  {
+    "id": "e-pref-4",
+    "subject": "english",
+    "stem": "What does the prefix in ‘recover’ mean?",
+    "choices": [
+      "again",
+      "without",
+      "together",
+      "after"
+    ],
+    "answerIndex": 0,
+    "explanation": "‘re-’ means again."
+  },
+  {
+    "id": "e-pref-6",
+    "subject": "english",
+    "stem": "What does the prefix in ‘discover’ mean?",
+    "choices": [
+      "not/opposite",
+      "together",
+      "without",
+      "after"
+    ],
+    "answerIndex": 0,
+    "explanation": "‘dis-’ means not/opposite."
+  },
+  {
+    "id": "e-pref-7",
+    "subject": "english",
+    "stem": "What does the prefix in ‘preplace’ mean?",
+    "choices": [
+      "before",
+      "together",
+      "after",
+      "without"
+    ],
+    "answerIndex": 0,
+    "explanation": "‘pre-’ means before."
+  },
+  {
+    "id": "e-pref-8",
+    "subject": "english",
+    "stem": "What does the prefix in ‘misagree’ mean?",
+    "choices": [
+      "after",
+      "wrongly",
+      "without",
+      "together"
+    ],
+    "answerIndex": 1,
+    "explanation": "‘mis-’ means wrongly."
+  },
+  {
+    "id": "e-pref-9",
+    "subject": "english",
+    "stem": "What does the prefix in ‘unagree’ mean?",
+    "choices": [
+      "without",
+      "together",
+      "not/undo",
+      "after"
+    ],
+    "answerIndex": 2,
+    "explanation": "‘un-’ means not/undo."
+  },
+  {
+    "id": "e-pref-10",
+    "subject": "english",
+    "stem": "What does the prefix in ‘mistrust’ mean?",
+    "choices": [
+      "wrongly",
+      "without",
+      "after",
+      "together"
+    ],
+    "answerIndex": 0,
+    "explanation": "‘mis-’ means wrongly."
+  },
+  {
+    "id": "e-pref-11",
+    "subject": "english",
+    "stem": "What does the prefix in ‘mislead’ mean?",
+    "choices": [
+      "without",
+      "after",
+      "wrongly",
+      "together"
+    ],
+    "answerIndex": 2,
+    "explanation": "‘mis-’ means wrongly."
+  },
+  {
+    "id": "e-pref-13",
+    "subject": "english",
+    "stem": "What does the prefix in ‘prelead’ mean?",
+    "choices": [
+      "without",
+      "together",
+      "before",
+      "after"
+    ],
+    "answerIndex": 2,
+    "explanation": "‘pre-’ means before."
+  },
+  {
+    "id": "e-pref-14",
+    "subject": "english",
+    "stem": "What does the prefix in ‘unplace’ mean?",
+    "choices": [
+      "after",
+      "without",
+      "together",
+      "not/undo"
+    ],
+    "answerIndex": 3,
+    "explanation": "‘un-’ means not/undo."
+  }
+]
