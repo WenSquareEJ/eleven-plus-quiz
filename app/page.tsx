@@ -364,7 +364,9 @@ function genMaths(settings: Settings){
     const rects = Array.from({length:4}).map(()=>({w:randInt(3,12), h:randInt(3,12)}));
     const areas = rects.map(r=>r.w*r.h);
     const correct = areas.indexOf(Math.max(...areas));
-    const options: SvgAtom[][] = rects.map(()=>[{shape:"square",fill:"white",size:56,x:50,y:50}]);
+    cconst options: SvgAtom[][] = rects.map(() => [
+  { shape: "square" as ShapeKind, fill: "white" as FillKind, size: 56, x: 50, y: 50 }
+]);
     const stem = `Which rectangle has the largest area? (A: ${rects[0].w}×${rects[0].h}, B: ${rects[1].w}×${rects[1].h}, C: ${rects[2].w}×${rects[2].h}, D: ${rects[3].w}×${rects[3].h})`;
     out.push({id:`m-geom-${Date.now()}-${i}`,subject:"maths",stem,choices:["A","B","C","D"],answerIndex:correct,explanation:`Compare areas w×h; the largest product wins.`,svgChoiceSets:options,tags:[yearTag(y),"topic:geometry","skill:area",`difficulty:${y==="DASH"?"medium":"easy"}`]});
   }
@@ -457,11 +459,11 @@ function genNVR(settings: Settings){
   for(let i=0;i<NVR_QUOTA.rotation;i++){
     const baseRot = [0,90,180][randInt(0,2)];
     const opts: SvgAtom[][] = [
-      [{shape:"square",fill:"black",size:56,x:50,y:50,rotation:baseRot}],
-      [{shape:"square",fill:"black",size:56,x:50,y:50,rotation:(baseRot+90)%360}],
-      [{shape:"square",fill:"black",size:56,x:50,y:50,rotation:(baseRot+180)%360}],
-      [{shape:"square",fill:"black",size:56,x:50,y:50,rotation:45}],
-    ];
+  [{ shape: "square" as ShapeKind, fill: "black" as FillKind, size: 56, x: 50, y: 50, rotation: baseRot }],
+  [{ shape: "square" as ShapeKind, fill: "black" as FillKind, size: 56, x: 50, y: 50, rotation: (baseRot + 90) % 360 }],
+  [{ shape: "square" as ShapeKind, fill: "black" as FillKind, size: 56, x: 50, y: 50, rotation: (baseRot + 180) % 360 }],
+  [{ shape: "square" as ShapeKind, fill: "black" as FillKind, size: 56, x: 50, y: 50, rotation: 45 }],
+];
     const order = shuffle([0,1,2,3]);
     const answer = order.indexOf(3);
     const shuffled = order.map(idx=>opts[idx]);
@@ -484,7 +486,13 @@ function genNVR(settings: Settings){
   // matrix-lite (pattern change): three same, one wrong
   for(let i=0;i<NVR_QUOTA.matrix;i++){
     const sizes=[40,48,56,64]; const idxWrong = randInt(0,3);
-    const opts = sizes.map((sz,idx)=>([{shape:"circle",fill: idx===idxWrong?"white":"black",size:sz,x:50,y:50}]));
+    const opts: SvgAtom[][] = sizes.map((sz, idx) => ([
+  {
+    shape: "circle" as ShapeKind,
+    fill: (idx === idxWrong ? "white" : "black") as FillKind,
+    size: sz, x: 50, y: 50
+  }
+]));
     const order = shuffle([0,1,2,3]);
     const answer = order.indexOf(idxWrong);
     const shuffled = order.map(i2=>opts[i2]);
