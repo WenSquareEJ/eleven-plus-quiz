@@ -1,4 +1,4 @@
-// app/page.tsx — 11+ Adventure (lint-clean v2)
+// app/page.tsx — 11+ Adventure (SVG NVR + Maths Geometry restored)
 "use client";
 
 import { useEffect, useState } from "react";
@@ -7,15 +7,29 @@ import { useEffect, useState } from "react";
 type Subject = "maths" | "english" | "vr" | "nvr" | "comprehension" | "writing";
 type Mode = "menu" | "quiz" | "results" | "writing" | "writingResults";
 
+type ShapeKind = "triangle" | "square" | "circle" | "diamond";
+type FillKind = "black" | "white";
+
+type SvgAtom = {
+  shape: ShapeKind;
+  fill: FillKind;
+  size: number;     // 10-60 px
+  rotation?: number; // degrees
+  x: number;       // 0-100 (% of 100x100 viewbox)
+  y: number;       // 0-100
+  extra?: "dot" | "stripe" | "none";
+};
+
 type Question = {
   id: string;
   subject: Exclude<Subject, "writing">;
   stem: string;
-  choices: string[];
+  choices: string[];            // text choices
   answerIndex: number;
   explanation?: string;
   difficulty?: "easy" | "medium" | "hard";
   tags?: string[];
+  svgChoiceSets?: SvgAtom[][];  // if present, render SVG choices instead of text
 };
 
 type Passage = {
@@ -28,14 +42,6 @@ type Passage = {
     answerIndex: number;
     explanation?: string;
   }>;
-};
-
-type RawQuestion = {
-  id: string | number;
-  stem: string;
-  choices: string[];
-  answerIndex: number;
-  explanation?: string;
 };
 
 /** Config */
@@ -52,6 +58,8 @@ function addUsedSecondsToday(n:number){ const k=`quizTime_${todayKey()}`; const 
 /** Utils */
 function shuffle<T>(arr: readonly T[]) { const a=[...arr]; for(let i=a.length-1;i>0;i--){ const j=Math.floor(Math.random()*(i+1)); [a[i],a[j]]=[a[j],a[i]];} return a;}
 function uniqueBy<T>(arr: readonly T[], key:(t:T)=>string){ const s=new Set<string>(); const out:T[]=[]; for(const it of arr){ const k=key(it).toLowerCase().trim(); if(!s.has(k)){ s.add(k); out.push(it);} } return out;}
+function randInt(min:number,max:number){ return Math.floor(Math.random()*(max-min+1))+min; }
+function pick<T>(a: readonly T[]){ return a[Math.floor(Math.random()*a.length)]; }
 
 /** UI */
 const Card: React.FC<{children: React.ReactNode}> = ({children}) => (
@@ -64,7 +72,49 @@ const Pill: React.FC<{children: React.ReactNode}> = ({children}) => (
   <span style={{display:"inline-block",padding:"6px 12px",borderRadius:999,background:"#cfe9c9",border:"1px solid #5a8151",fontSize:12}}>{children}</span>
 );
 
-/** Generators — English (compact) */
+/** SVG Renderer */
+function shapePath(atom: SvgAtom): JSX.Element {
+  const fill = atom.fill==="black" ? "#222" : "#fff";
+  const stroke = "#222";
+  const cx = atom.x; const cy = atom.y; const size = atom.size;
+  const rot = atom.rotation ?? 0;
+
+  const common = {transform:`rotate(${rot}, ${cx}, ${cy})`};
+
+  if(atom.shape==="circle"){
+    return <circle cx={cx} cy={cy} r={size/2} fill={fill} stroke={stroke} strokeWidth={2} />;
+  }
+  if(atom.shape==="square"){
+    const x = cx - size/2;
+    const y = cy - size/2;
+    return <rect x={x} y={y} width={size} height={size} fill={fill} stroke={stroke} strokeWidth={2} transform={common.transform}/>;
+  }
+  if(atom.shape==="triangle"){
+    const h = (Math.sqrt(3)/2)*size;
+    const points = [
+      `${cx},${cy - (2/3)*h}`,
+      `${cx - size/2},${cy + (1/3)*h}`,
+      `${cx + size/2},${cy + (1/3)*h}`
+    ].join(" ");
+    return <polygon points={points} fill={fill} stroke={stroke} strokeWidth={2} transform={common.transform}/>;
+  }
+  // diamond
+  const pts = [
+    `${cx},${cy - size/2}`,
+    `${cx + size/2},${cy}`,
+    `${cx},${cy + size/2}`,
+    `${cx - size/2},${cy}`
+  ].join(" ");
+  return <polygon points={pts} fill={fill} stroke={stroke} strokeWidth={2} transform={common.transform}/>;
+}
+
+const SvgChoice: React.FC<{atoms: SvgAtom[]}> = ({atoms}) => (
+  <svg viewBox="0 0 100 100" width={110} height={110} style={{background:"#f8fff6",border:"3px solid #2f4f2f",borderRadius:12}}>
+    {atoms.map((a, idx)=> <g key={idx}>{shapePath(a)}</g>)}
+  </svg>
+);
+
+/** Generators — English (same as lint-clean v2) */
 function buildEnglishBank(): Question[]{
   const antonyms = [
     ["scarce","plentiful"],
@@ -113,10 +163,11 @@ function buildEnglishBank(): Question[]{
   return [...q1, ...q2, ...q3, ...q4];
 }
 
-/** Generators — Maths (compact) */
+/** Generators — Maths (adds simple geometry/angles/perimeter with SVG) */
 function buildMathBank(): Question[]{
   const out: Question[] = [];
-  for(let i=0;i<4;i++){
+  // Fractions / Percent / Word as before
+  for(let i=0;i<3;i++){
     const d = [4,5,8,10][Math.floor(Math.random()*4)];
     const num = [1,2,3][Math.floor(Math.random()*3)];
     const whole = 12+Math.floor(Math.random()*49);
@@ -124,7 +175,7 @@ function buildMathBank(): Question[]{
     const choices = shuffle([ans, ans+1, Math.max(1,ans-1), ans+2]).map(String);
     out.push({id:`m-frac-${i}-${num}-${d}-${whole}`,subject:"maths",stem:`What is ${num}/${d} of ${whole}?`,choices,answerIndex:choices.indexOf(String(ans)),difficulty:"medium"});
   }
-  for(let i=0;i<3;i++){
+  for(let i=0;i<2;i++){
     const base = 40+Math.floor(Math.random()*161);
     const pct = [10,12,20,25][Math.floor(Math.random()*4)];
     const inc = Math.random()<0.5;
@@ -132,17 +183,37 @@ function buildMathBank(): Question[]{
     const choices = shuffle([ans, ans+1, Math.max(1,ans-1), ans+3]).map(String);
     out.push({id:`m-pct-${i}`,subject:"maths",stem:`${inc?"Increase":"Reduce"} £${base} by ${pct}%`,choices,answerIndex:choices.indexOf(String(ans)),difficulty:"medium"});
   }
-  for(let i=0;i<3;i++){
+  for(let i=0;i<2;i++){
     const price = 2+Math.floor(Math.random()*8);
     const qty = 3+Math.floor(Math.random()*10);
     const ans = price*qty;
     const choices = shuffle([ans, ans+2, Math.max(1,ans-2), ans+5]).map(String);
     out.push({id:`m-word-${i}`,subject:"maths",stem:`Stickers cost £${price} each. How much for ${qty} stickers?`,choices,answerIndex:choices.indexOf(String(ans)),difficulty:"easy"});
   }
+  // Geometry: choose the shape with the largest area (rectangles)
+  for(let i=0;i<2;i++){
+    const rects = Array.from({length:4}).map(()=>({w:randInt(3,12), h:randInt(3,12)}));
+    const areas = rects.map(r=>r.w*r.h);
+    const correct = areas.indexOf(Math.max(...areas));
+    const options: SvgAtom[][] = rects.map((r)=>[
+      {shape:"square",fill:"white",size:60,x:50,y:50,rotation:0}, // placeholder box
+    ]);
+    // Encode dimensions in the stem text
+    const stem = `Which rectangle has the largest area? (A: ${rects[0].w}×${rects[0].h}, B: ${rects[1].w}×${rects[1].h}, C: ${rects[2].w}×${rects[2].h}, D: ${rects[3].w}×${rects[3].h})`;
+    out.push({
+      id:`m-geom-rect-${i}`,
+      subject:"maths",
+      stem,
+      choices:["A","B","C","D"],
+      answerIndex: correct,
+      difficulty:"medium",
+      svgChoiceSets: options
+    });
+  }
   return out;
 }
 
-/** Generators — VR (compact) */
+/** Generators — VR (same as lint-clean v2) */
 function buildVRBank(): Question[]{
   const out: Question[] = [];
   for(let i=0;i<3;i++){
@@ -168,7 +239,69 @@ function buildVRBank(): Question[]{
   return out;
 }
 
+/** NVR generators — SVG odd-one-out (fill or rotation) */
+function buildNVRBank(): Question[]{
+  const out: Question[] = [];
+  for(let i=0;i<4;i++){
+    const commonFill: FillKind = Math.random()<0.5 ? "black":"white";
+    const oddFill: FillKind = commonFill==="black" ? "white":"black";
+    const shapes: ShapeKind[] = ["triangle","square","circle","diamond"];
+    const options: SvgAtom[][] = [
+      [{shape:shapes[0],fill:commonFill,size:56,x:50,y:50}],
+      [{shape:shapes[1],fill:commonFill,size:56,x:50,y:50}],
+      [{shape:shapes[2],fill:commonFill,size:56,x:50,y:50}],
+      [{shape:shapes[3],fill:oddFill,size:56,x:50,y:50}],
+    ];
+    const indices = [0,1,2,3];
+    const shuffledIdx = shuffle(indices);
+    const answer = shuffledIdx.indexOf(3);
+    const shuffledOptions = shuffledIdx.map(idx=>options[idx]);
+    out.push({
+      id:`nvr-odd-fill-${i}-${commonFill}`,
+      subject:"nvr",
+      stem:"Which is the odd one out?",
+      choices:["A","B","C","D"],
+      answerIndex: answer,
+      svgChoiceSets: shuffledOptions,
+      difficulty:"easy"
+    });
+  }
+  for(let i=0;i<4;i++){
+    // three squares rotated 0°, 90°, 180°; one at 45°
+    const baseRot = [0,90,180][Math.floor(Math.random()*3)];
+    const options: SvgAtom[][] = [
+      [{shape:"square",fill:"black",size:56,x:50,y:50,rotation:baseRot}],
+      [{shape:"square",fill:"black",size:56,x:50,y:50,rotation:(baseRot+90)%360}],
+      [{shape:"square",fill:"black",size:56,x:50,y:50,rotation:(baseRot+180)%360}],
+      [{shape:"square",fill:"black",size:56,x:50,y:50,rotation:45}],
+    ];
+    const indices = [0,1,2,3];
+    const shuffledIdx = shuffle(indices);
+    const answer = shuffledIdx.indexOf(3);
+    const shuffledOptions = shuffledIdx.map(idx=>options[idx]);
+    out.push({
+      id:`nvr-rot-odd-${i}`,
+      subject:"nvr",
+      stem:"Which figure has a different rotation?",
+      choices:["A","B","C","D"],
+      answerIndex: answer,
+      svgChoiceSets: shuffledOptions,
+      difficulty:"medium"
+    });
+  }
+  return out;
+}
+
 /** Data loading */
+type RawQuestion = {
+  id: string | number;
+  stem: string;
+  choices: string[];
+  answerIndex: number;
+  explanation?: string;
+  svgChoiceSets?: SvgAtom[][];
+};
+
 async function loadCurated(subj: Exclude<Subject,"comprehension"|"writing">): Promise<Question[]>{
   const map: Record<Exclude<Subject,"comprehension"|"writing">, string> = { maths:"math", english:"english", vr:"vr", nvr:"nvr" };
   try{
@@ -179,9 +312,10 @@ async function loadCurated(subj: Exclude<Subject,"comprehension"|"writing">): Pr
         id: String(q.id),
         subject: subj,
         stem: String(q.stem),
-        choices: q.choices,
+        choices: Array.isArray(q.choices) ? q.choices : [],
         answerIndex: Number(q.answerIndex),
-        explanation: q.explanation
+        explanation: q.explanation,
+        svgChoiceSets: q.svgChoiceSets
       }));
       return typed;
     }
@@ -252,7 +386,8 @@ export default function Page(){
     if(subj==="english") return buildEnglishBank();
     if(subj==="maths") return buildMathBank();
     if(subj==="vr") return buildVRBank();
-    return []; // prefer curated for NVR
+    if(subj==="nvr") return buildNVRBank();
+    return [];
   }
 
   async function startQuiz(subj: Subject){
@@ -263,8 +398,9 @@ export default function Page(){
     }
     const curated = await loadCurated(subj);
     const generated = buildGenerated(subj);
-    const pool = uniqueBy(shuffle([...curated, ...generated]), q=>q.stem);
-    const need = subj==="nvr"?8: subj==="vr"?10:12;
+    // Prefer curated first for NVR (then generated), else mix evenly
+    const pool = subj==="nvr" ? uniqueBy([...curated, ...generated], q=>q.stem) : uniqueBy(shuffle([...curated, ...generated]), q=>q.stem);
+    const need = subj==="nvr"?10: subj==="vr"?10:12;
     const set = pool.slice(0, need);
     setSubject(subj);
     setQuestions(set);
@@ -282,6 +418,8 @@ export default function Page(){
   const correctCount = questions.reduce((acc, q, i)=> acc + (answers[i]===q.answerIndex ? 1 : 0), 0);
 
   /** Render */
+  const current = questions[index];
+
   return (
     <div style={{minHeight:"100vh",background:"linear-gradient(180deg,#c8e6c9,#a5d6a7)",color:"#20351f",padding:24}}>
       <div style={{maxWidth:980,margin:"0 auto",display:"grid",gap:16}}>
@@ -306,7 +444,7 @@ export default function Page(){
                 <BlockButton disabled={!canStart} onClick={()=>startQuiz("writing")}>Writing (typed, 30m)</BlockButton>
               </div>
               <div style={{fontSize:12,opacity:0.75}}>
-                Counts — Maths 12 • English 12 • VR 10 • NVR 8 • Comprehension up to 5
+                Counts — Maths 12 • English 12 • VR 10 • NVR 10 • Comprehension up to 5
               </div>
               <div style={{display:"flex",gap:8,flexWrap:"wrap"}}>
                 <Pill>Daily: {Math.floor(getUsedSecondsToday()/60)}m / {Math.floor(DAILY_CAP_SECONDS/60)}m</Pill>
@@ -315,7 +453,7 @@ export default function Page(){
           </Card>
         )}
 
-        {mode==="quiz" && (
+        {mode==="quiz" && current && (
           <Card>
             <div style={{display:"grid",gap:12}}>
               <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",flexWrap:"wrap",gap:8}}>
@@ -333,12 +471,25 @@ export default function Page(){
                 </div>
               )}
 
-              <div style={{fontSize:20,fontWeight:700}}>{questions[index]?.stem}</div>
-              <div style={{display:"grid",gap:10}}>
-                {questions[index]?.choices?.map((c, i)=>(
-                  <BlockButton key={i} onClick={()=>answer(i)}>{c}</BlockButton>
-                ))}
-              </div>
+              <div style={{fontSize:20,fontWeight:700}}>{current.stem}</div>
+
+              {/* Render SVG options if present */}
+              {current.svgChoiceSets ? (
+                <div style={{display:"grid",gap:10,gridTemplateColumns:"repeat(auto-fit, minmax(140px, 1fr))"}}>
+                  {current.svgChoiceSets.map((atoms, i)=>(
+                    <button key={i} onClick={()=>answer(i)} style={{background:"transparent",border:"none",padding:0,cursor:"pointer"}}>
+                      <SvgChoice atoms={atoms}/>
+                      <div style={{textAlign:"center",marginTop:6,fontWeight:700}}>{"ABCD"[i]}</div>
+                    </button>
+                  ))}
+                </div>
+              ) : (
+                <div style={{display:"grid",gap:10}}>
+                  {current.choices.map((c, i)=>(
+                    <BlockButton key={i} onClick={()=>answer(i)}>{c}</BlockButton>
+                  ))}
+                </div>
+              )}
             </div>
           </Card>
         )}
@@ -356,7 +507,7 @@ export default function Page(){
               {questions.map((q,i)=>(
                 <div key={q.id} style={{border:"2px solid #6f9e63",borderRadius:10,padding:12,background:"#eef7ea"}}>
                   <div style={{fontWeight:700}}>Q{i+1}. {q.stem}</div>
-                  <div>Your answer: <strong>{typeof answers[i]==="number" ? q.choices[answers[i]] : "—"}</strong> • Correct: <strong>{q.choices[q.answerIndex]}</strong></div>
+                  <div>Your answer: <strong>{typeof answers[i]==="number" ? (q.choices[q.answerIndex] ? q.choices[answers[i]] : "Option "+("ABCD"[answers[i]])) : "—"}</strong> • Correct: <strong>{q.choices[q.answerIndex] ?? "Option "+("ABCD"[q.answerIndex])}</strong></div>
                 </div>
               ))}
               <div style={{display:"flex",gap:12,flexWrap:"wrap"}}>
